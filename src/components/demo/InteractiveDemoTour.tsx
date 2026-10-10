@@ -238,19 +238,19 @@ export const InteractiveDemoTour: React.FC<InteractiveDemoTourProps> = ({ isOpen
   const currentMeta = stepMeta[currentStep - 1] || stepMeta[0];
 
   return (
-    <div className="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-[2000] max-w-2xl w-full">
-      <div className="rounded-2xl bg-[#090D18]/95 border-2 border-cyan-500/70 shadow-[0_0_35px_rgba(6,182,212,0.35)] backdrop-blur-xl p-4 sm:p-5 text-slate-100 font-mono space-y-3">
+    <div className="fixed bottom-20 lg:bottom-4 inset-x-2.5 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-[2000] max-w-2xl w-auto sm:w-full">
+      <div className="rounded-2xl bg-[#090D18]/95 border-2 border-cyan-500/70 shadow-[0_0_35px_rgba(6,182,212,0.35)] backdrop-blur-xl p-3.5 sm:p-5 text-slate-100 font-mono space-y-2.5 sm:space-y-3">
         {/* Top Header */}
-        <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2.5">
-          <div className="flex items-center gap-2">
-            <span className="p-1 rounded bg-cyan-950 text-cyan-400 border border-cyan-500/40">
-              <Sparkles className="w-4 h-4 animate-pulse" />
+        <div className="flex items-center justify-between gap-2 sm:gap-3 border-b border-slate-800 pb-2 sm:pb-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="p-1 rounded bg-cyan-950 text-cyan-400 border border-cyan-500/40 shrink-0">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-pulse" />
             </span>
-            <span className="text-xs font-black tracking-wider text-white">
-              INFRALENS 2-MINUTE JUDGE DEMO
+            <span className="text-[11px] sm:text-xs font-black tracking-wider text-white truncate">
+              JUDGE DEMO TOUR
             </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-500/30">
-              Step {currentStep} of {totalSteps}
+            <span className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-500/30 whitespace-nowrap shrink-0">
+              {currentStep}/{totalSteps}
             </span>
           </div>
 

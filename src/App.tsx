@@ -47,7 +47,7 @@ const AppContent: React.FC = () => {
   }, [setCurrentView]);
 
   return (
-    <div className="min-h-screen bg-[#07090E] text-slate-100 flex flex-col font-sans pb-16 lg:pb-0">
+    <div className="min-h-screen bg-[#07090E] text-slate-100 flex flex-col font-sans pb-16 lg:pb-0 overflow-x-hidden">
       {/* Top Header */}
       <Header
         onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

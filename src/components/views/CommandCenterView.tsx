@@ -132,7 +132,7 @@ export const CommandCenterView: React.FC = () => {
       </div>
 
       {/* Top Statistics 6-Cards Municipal Operations Grid (Rule 2) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-3.5">
         <StatCard
           label="ACTIVE ISSUES"
           value={stats.activeIssues}
@@ -211,7 +211,7 @@ export const CommandCenterView: React.FC = () => {
         </div>
 
         {filteredIssues.length === 0 ? (
-          <div className="h-[460px] lg:h-[540px] rounded-2xl bg-[#090D17] border border-slate-800 flex flex-col items-center justify-center text-center p-8 space-y-3">
+          <div className="h-[340px] sm:h-[440px] lg:h-[540px] rounded-2xl bg-[#090D17] border border-slate-800 flex flex-col items-center justify-center text-center p-6 sm:p-8 space-y-3">
             <div className="p-3 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-400">
               <CheckCircle2 className="w-8 h-8" />
             </div>
@@ -228,19 +228,19 @@ export const CommandCenterView: React.FC = () => {
             </button>
           </div>
         ) : (
-          <GisMap heightClass="h-[460px] lg:h-[540px]" showControls={true} />
+          <GisMap heightClass="h-[340px] sm:h-[440px] lg:h-[540px]" showControls={true} />
         )}
       </div>
 
       {/* Bottom Grid: Left = Priority Queue, Right = Infrastructure Health */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Left Col: Priority Queue (7 Cols) */}
-        <div className="lg:col-span-7 h-[440px]">
+        <div className="lg:col-span-7 h-[420px] sm:h-[440px]">
           <PriorityQueueWidget maxItems={6} />
         </div>
 
         {/* Right Col: Infrastructure Health (5 Cols) */}
-        <div className="lg:col-span-5 h-[440px]">
+        <div className="lg:col-span-5 h-[420px] sm:h-[440px]">
           <InfrastructureHealthWidget />
         </div>
       </div>

@@ -60,6 +60,36 @@ const MapClickHandler: React.FC<{ onCoordinatesPicked?: (coords: { lat: number; 
   return null;
 };
 
+// Automatic container resize observer to prevent grey tiles on viewport changes
+const MapResizeHandler: React.FC = () => {
+  const map = useMap();
+
+  useEffect(() => {
+    // Initial size invalidation
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+
+    const container = map.getContainer();
+    if (!container) {
+      return () => clearTimeout(timer);
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+
+    resizeObserver.observe(container);
+
+    return () => {
+      clearTimeout(timer);
+      resizeObserver.disconnect();
+    };
+  }, [map]);
+
+  return null;
+};
+
 // Create custom leaflet divIcon for issues and clusters
 const createCustomMarkerIcon = (issue: Issue, isSelected: boolean) => {
   const isEmergency = issue.priority === 'P0';
@@ -218,12 +248,12 @@ export const GisMap: React.FC<GisMapProps> = ({
     <div className={`relative w-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-[#07090E] ${heightClass}`}>
       {/* Map Control Bar Overlay */}
       {showControls && (
-        <div className="absolute top-3 left-3 z-[1000] flex flex-wrap items-center gap-2">
+        <div className="absolute top-2 sm:top-3 left-2 sm:left-3 z-[1000] flex items-center gap-1.5 sm:gap-2 max-w-[calc(100%-54px)] overflow-x-auto no-scrollbar py-0.5">
           {/* Quick Filters */}
-          <div className="flex items-center rounded-lg bg-[#0E1524]/90 border border-slate-800 p-1 backdrop-blur-md shadow-xl text-xs font-mono">
+          <div className="flex items-center shrink-0 rounded-lg bg-[#0E1524]/90 border border-slate-800 p-0.5 sm:p-1 backdrop-blur-md shadow-xl text-[11px] sm:text-xs font-mono">
             <button
               onClick={() => setMapFilter('all')}
-              className={`px-2.5 py-1 rounded-md transition-colors ${
+              className={`px-2 sm:px-2.5 py-1 rounded-md transition-colors ${
                 mapFilter === 'all'
                   ? 'bg-cyan-950 text-cyan-300 font-semibold border border-cyan-500/40'
                   : 'text-slate-400 hover:text-white'
@@ -233,18 +263,18 @@ export const GisMap: React.FC<GisMapProps> = ({
             </button>
             <button
               onClick={() => setMapFilter('critical')}
-              className={`px-2.5 py-1 rounded-md flex items-center gap-1.5 transition-colors ${
+              className={`px-2 sm:px-2.5 py-1 rounded-md flex items-center gap-1 sm:gap-1.5 transition-colors ${
                 mapFilter === 'critical'
                   ? 'bg-rose-950 text-rose-300 font-semibold border border-rose-500/40'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-rose-500 animate-pulse" />
               Critical / P0
             </button>
             <button
               onClick={() => setMapFilter('clusters')}
-              className={`px-2.5 py-1 rounded-md transition-colors ${
+              className={`px-2 sm:px-2.5 py-1 rounded-md transition-colors ${
                 mapFilter === 'clusters'
                   ? 'bg-orange-950 text-orange-300 font-semibold border border-orange-500/40'
                   : 'text-slate-400 hover:text-white'
@@ -257,20 +287,20 @@ export const GisMap: React.FC<GisMapProps> = ({
           {/* Road Network Toggle (Rule 3) */}
           <button
             onClick={() => setShowRoads(!showRoads)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono backdrop-blur-md transition-colors ${
+            className={`flex items-center shrink-0 gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border text-[11px] sm:text-xs font-mono backdrop-blur-md transition-colors ${
               showRoads
                 ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40 shadow-lg shadow-emerald-950/40'
                 : 'bg-[#0E1524]/90 text-slate-400 border-slate-800 hover:text-white'
             }`}
           >
             <Route className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Road Corridors {showRoads ? 'ON' : 'OFF'}</span>
+            <span>Corridors {showRoads ? 'ON' : 'OFF'}</span>
           </button>
 
           {/* Heatmap Toggle */}
           <button
             onClick={() => setShowHeatmap(!showHeatmap)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono backdrop-blur-md transition-colors ${
+            className={`flex items-center shrink-0 gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border text-[11px] sm:text-xs font-mono backdrop-blur-md transition-colors ${
               showHeatmap
                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400 shadow-lg shadow-cyan-950/40'
                 : 'bg-[#0E1524]/90 text-slate-400 border-slate-800 hover:text-white'
@@ -283,38 +313,38 @@ export const GisMap: React.FC<GisMapProps> = ({
       )}
 
       {/* Floating Tactical Controls (Right-top) */}
-      <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-2">
+      <div className="absolute top-2 sm:top-3 right-2 sm:right-3 z-[1000] flex flex-col gap-1.5 sm:gap-2">
         <div className="flex flex-col rounded-lg bg-[#0E1524]/90 border border-slate-800 overflow-hidden shadow-xl backdrop-blur-md">
           <button
             onClick={handleZoomIn}
-            className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-colors border-b border-slate-800"
+            className="p-1.5 sm:p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-colors border-b border-slate-800"
             title="Zoom In"
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
           <button
             onClick={handleZoomOut}
-            className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-colors"
+            className="p-1.5 sm:p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-colors"
             title="Zoom Out"
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
 
         <button
           onClick={handleResetCenter}
-          className="p-2 rounded-lg bg-[#0E1524]/90 border border-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-colors backdrop-blur-md shadow-xl"
+          className="p-1.5 sm:p-2 rounded-lg bg-[#0E1524]/90 border border-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-colors backdrop-blur-md shadow-xl"
           title="Reset to Metro Center"
         >
-          <Crosshair className="w-4 h-4" />
+          <Crosshair className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
 
         <button
           onClick={() => setBasemapStyle(basemapStyle === 'dark' ? 'contrast' : 'dark')}
-          className="p-2 rounded-lg bg-[#0E1524]/90 border border-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-colors backdrop-blur-md shadow-xl"
+          className="p-1.5 sm:p-2 rounded-lg bg-[#0E1524]/90 border border-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-colors backdrop-blur-md shadow-xl"
           title="Toggle Basemap Style"
         >
-          <Layers className="w-4 h-4" />
+          <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
 
@@ -355,6 +385,7 @@ export const GisMap: React.FC<GisMapProps> = ({
           url={tileUrl}
         />
 
+        <MapResizeHandler />
         <MapEffectController targetCoords={flyTargetCoords} />
         <MapClickHandler onCoordinatesPicked={onMapClickCoordinates} />
 

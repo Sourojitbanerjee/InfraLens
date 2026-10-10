@@ -100,12 +100,12 @@ export const ActivityLogView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto px-4 sm:px-6 py-6">
+    <div className="space-y-6 max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
       {/* Title & Mode Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-800">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold font-mono text-white tracking-wide">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-lg sm:text-2xl font-bold font-mono text-white tracking-wide">
               OPERATIONAL TIMELINE & AUDIT FEED
             </h1>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">
@@ -118,39 +118,41 @@ export const ActivityLogView: React.FC = () => {
         </div>
 
         {/* View Mode Toggle */}
-        <div className="flex items-center rounded-lg bg-[#0E1524] border border-slate-800 p-1 text-xs font-mono">
+        <div className="flex items-center rounded-lg bg-[#0E1524] border border-slate-800 p-0.5 sm:p-1 text-[11px] sm:text-xs font-mono w-full sm:w-auto">
           <button
             onClick={() => setActiveTab('operational')}
-            className={`px-3 py-1 rounded transition-colors ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 sm:py-1 rounded text-center transition-colors ${
               activeTab === 'operational'
                 ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/40'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Incident Lifecycle (CL-027)
+            <span className="inline sm:hidden">Lifecycle</span>
+            <span className="hidden sm:inline">Incident Lifecycle (CL-027)</span>
           </button>
           <button
             onClick={() => setActiveTab('audit')}
-            className={`px-3 py-1 rounded transition-colors ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 sm:py-1 rounded text-center transition-colors ${
               activeTab === 'audit'
                 ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/40'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            System Audit Log ({auditEvents.length})
+            <span className="inline sm:hidden">Audit Log ({auditEvents.length})</span>
+            <span className="hidden sm:inline">System Audit Log ({auditEvents.length})</span>
           </button>
         </div>
       </div>
 
       {activeTab === 'operational' ? (
         /* Operational Incident Lifecycle Flow (Rule 10) */
-        <div className="rounded-2xl bg-[#090D17] border border-slate-800 p-6 sm:p-8 shadow-2xl space-y-6">
+        <div className="rounded-2xl bg-[#090D17] border border-slate-800 p-4 sm:p-8 shadow-2xl space-y-6">
           <div className="flex items-center justify-between border-b border-slate-800 pb-4">
             <div>
               <span className="text-xs font-mono text-orange-400 uppercase tracking-wider font-bold">
                 INCIDENT FLOW • CLUSTER CL-027 (4TH & BRYANT CORRIDOR)
               </span>
-              <h3 className="font-mono text-base font-bold text-white mt-0.5">
+              <h3 className="font-mono text-sm sm:text-base font-bold text-white mt-0.5">
                 From Computer Vision Detection to Field Repair Sign-off
               </h3>
             </div>
@@ -159,18 +161,18 @@ export const ActivityLogView: React.FC = () => {
             </span>
           </div>
 
-          <div className="relative border-l-2 border-cyan-500/30 ml-4 sm:ml-6 space-y-8 pl-6 sm:pl-8">
+          <div className="relative border-l-2 border-cyan-500/30 ml-3.5 sm:ml-6 space-y-6 sm:space-y-8 pl-5 sm:pl-8">
             {operationalTimelineSteps.map((step, idx) => (
               <div key={idx} className="relative group">
                 {/* Timeline Pin */}
-                <div className="absolute -left-[35px] sm:-left-[43px] top-1 w-8 h-8 rounded-full bg-[#0D1525] border-2 border-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.5)] flex items-center justify-center">
+                <div className="absolute -left-[31px] sm:-left-[43px] top-1 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#0D1525] border-2 border-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.5)] flex items-center justify-center">
                   {step.icon}
                 </div>
 
                 {/* Timeline Card */}
-                <div className="p-4 sm:p-5 rounded-xl bg-[#0E1524] border border-slate-800/80 hover:border-cyan-500/40 transition-all space-y-2">
+                <div className="p-3.5 sm:p-5 rounded-xl bg-[#0E1524] border border-slate-800/80 hover:border-cyan-500/40 transition-all space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                       <span className="text-xs font-mono font-black text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
                         {step.time}
                       </span>
@@ -189,9 +191,9 @@ export const ActivityLogView: React.FC = () => {
                     {step.details}
                   </p>
 
-                  <div className="text-[11px] font-mono text-slate-500 pt-1 border-t border-slate-800/60 flex items-center gap-1.5">
+                  <div className="text-[11px] font-mono text-slate-500 pt-1 border-t border-slate-800/60 flex flex-wrap items-center gap-1.5">
                     <span className="text-slate-400 uppercase text-[9px] font-bold">Actor:</span>
-                    <span className="text-slate-300">{step.actor}</span>
+                    <span className="text-slate-300 break-words">{step.actor}</span>
                   </div>
                 </div>
               </div>
@@ -200,15 +202,15 @@ export const ActivityLogView: React.FC = () => {
         </div>
       ) : (
         /* Immutable System Audit Feed */
-        <div className="rounded-2xl bg-[#090D17] border border-slate-800 p-6 shadow-2xl space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="rounded-2xl bg-[#090D17] border border-slate-800 p-4 sm:p-6 shadow-2xl space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
             <span className="text-xs font-mono text-slate-400">
               Filter System Actions:
             </span>
             <select
               value={filterAction}
               onChange={(e) => setFilterAction(e.target.value)}
-              className="bg-[#0E1524] border border-slate-800 text-slate-300 rounded px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500"
+              className="bg-[#0E1524] border border-slate-800 text-slate-300 rounded px-2.5 sm:px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500"
             >
               <option value="all">All Events</option>
               <option value="DETECTED">AI Detections</option>
@@ -218,12 +220,12 @@ export const ActivityLogView: React.FC = () => {
             </select>
           </div>
 
-          <div className="relative border-l border-slate-800 ml-4 space-y-6">
+          <div className="relative border-l border-slate-800 ml-3.5 sm:ml-4 space-y-5 sm:space-y-6">
             {filteredEvents.map((event) => {
               const matchedIssue = issues.find((i) => i.id === event.issueId);
 
               return (
-                <div key={event.id} className="relative pl-6 group">
+                <div key={event.id} className="relative pl-5 sm:pl-6 group">
                   {/* Timeline Node Dot */}
                   <div
                     className={`absolute -left-2 top-1.5 w-4 h-4 rounded-full border-2 border-[#090D17] ${
@@ -236,9 +238,9 @@ export const ActivityLogView: React.FC = () => {
                   />
 
                   {/* Event Card */}
-                  <div className="p-4 rounded-xl bg-[#0E1524] border border-slate-800/80 hover:border-cyan-500/30 transition-all space-y-2">
+                  <div className="p-3.5 sm:p-4 rounded-xl bg-[#0E1524] border border-slate-800/80 hover:border-cyan-500/30 transition-all space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                         <Badge
                           variant={
                             event.action === 'RESOLVED'
@@ -266,8 +268,8 @@ export const ActivityLogView: React.FC = () => {
                       {event.details}
                     </p>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[11px] font-mono text-slate-400">
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/60 text-[11px] font-mono text-slate-400">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {event.actorRole.includes('Camera') || event.actorRole.includes('Engine') ? (
                           <Bot className="w-3.5 h-3.5 text-cyan-400" />
                         ) : (

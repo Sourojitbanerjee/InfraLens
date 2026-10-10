@@ -22,12 +22,12 @@ export const AuthoritiesView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div className="space-y-6 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
       {/* Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-800">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold font-mono text-white tracking-wide">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-lg sm:text-2xl font-bold font-mono text-white tracking-wide">
               MUNICIPAL AUTHORITIES & DISPATCH MATRIX
             </h1>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">
@@ -41,11 +41,11 @@ export const AuthoritiesView: React.FC = () => {
       </div>
 
       {/* Authority Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {authorities.map((auth) => (
           <div
             key={auth.id}
-            className="rounded-2xl bg-[#090D17] border border-slate-800 hover:border-cyan-500/40 p-5 shadow-xl transition-all duration-300 flex flex-col justify-between group"
+            className="rounded-2xl bg-[#090D17] border border-slate-800 hover:border-cyan-500/40 p-4 sm:p-5 shadow-xl transition-all duration-300 flex flex-col justify-between group"
           >
             <div className="space-y-4">
               {/* Header */}

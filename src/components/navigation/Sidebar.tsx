@@ -83,19 +83,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
       {/* Mobile Backdrop */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-30 lg:hidden"
+          className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40 lg:hidden"
           onClick={onCloseMobile}
         />
       )}
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-16 bottom-0 left-0 z-30 w-64 bg-[#090D17] border-r border-slate-800/80 flex flex-col justify-between transition-transform duration-300 lg:translate-x-0 ${
-          isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 lg:top-16 bottom-0 left-0 z-50 lg:z-30 w-72 sm:w-64 bg-[#090D17] border-r border-slate-800/80 flex flex-col justify-between transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
         }`}
       >
+        {/* Mobile-only Header */}
+        <div className="lg:hidden p-4 border-b border-slate-800 flex items-center justify-between bg-[#0B0F19]">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="font-mono text-xs font-bold text-slate-200">INFRALENS NAVIGATION</span>
+          </div>
+          <button
+            onClick={onCloseMobile}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+            aria-label="Close navigation menu"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+
         {/* Navigation list */}
-        <div className="p-3.5 space-y-6 overflow-y-auto">
+        <div className="p-3.5 space-y-6 overflow-y-auto flex-1">
           <div>
             <div className="px-3 mb-2 text-[10px] font-mono uppercase tracking-widest text-slate-500 font-semibold">
               Operations & Triage

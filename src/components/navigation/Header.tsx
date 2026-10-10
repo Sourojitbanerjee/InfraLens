@@ -60,12 +60,12 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 bg-[#080B13]/90 backdrop-blur-md border-b border-slate-800/80 px-4 lg:px-6 h-16 flex items-center justify-between">
+    <header className="sticky top-0 z-40 bg-[#080B13]/90 backdrop-blur-md border-b border-slate-800/80 px-2.5 sm:px-4 lg:px-6 h-16 flex items-center justify-between">
       {/* Left: Brand & Mobile Toggle */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         <button
           onClick={onToggleMobileMenu}
-          className="lg:hidden p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800/80 focus:outline-none"
+          className="lg:hidden p-1.5 sm:p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800/80 focus:outline-none"
           aria-label="Toggle mobile navigation"
         >
           {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -73,22 +73,22 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
 
         <div
           onClick={() => setCurrentView('landing')}
-          className="flex items-center gap-2.5 cursor-pointer group"
+          className="flex items-center gap-2 cursor-pointer group"
         >
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-950/70 border border-cyan-500/40 text-cyan-400 shadow-sm shadow-cyan-500/20 group-hover:border-cyan-400 transition-colors">
-            <Radio className="w-4 h-4 animate-pulse" />
+          <div className="relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-cyan-950/70 border border-cyan-500/40 text-cyan-400 shadow-sm shadow-cyan-500/20 group-hover:border-cyan-400 transition-colors shrink-0">
+            <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-pulse" />
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#080B13]" />
           </div>
           <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold tracking-wider text-slate-100 text-base font-mono">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-extrabold tracking-wider text-slate-100 text-sm sm:text-base font-mono">
                 INFRALENS
               </span>
-              <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase bg-cyan-950/80 border border-cyan-800/60 px-1.5 py-0.2 rounded">
+              <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase bg-cyan-950/80 border border-cyan-800/60 px-1.5 py-0.2 rounded hidden sm:inline-block">
                 OPS v1.0
               </span>
             </div>
-            <span className="text-[10px] text-slate-400 font-mono tracking-tight hidden sm:inline">
+            <span className="text-[10px] text-slate-400 font-mono tracking-tight hidden md:inline">
               URBAN INFRASTRUCTURE INTELLIGENCE
             </span>
           </div>
@@ -132,9 +132,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
         {/* Live Clock */}
-        <div className="hidden sm:flex flex-col items-end mr-1 text-right">
+        <div className="hidden md:flex flex-col items-end mr-1 text-right">
           <span className="font-mono text-xs font-medium text-slate-200 tracking-wider">
             {currentTime || '00:00:00 UTC'}
           </span>
@@ -146,7 +146,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
         {/* Command Palette Mobile Button */}
         <button
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="md:hidden p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition-colors"
+          className="md:hidden p-1.5 sm:p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition-colors"
           title="Search (CMD+K)"
         >
           <Search className="w-4 h-4" />
@@ -156,12 +156,12 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
         {onStartDemo && (
           <button
             onClick={onStartDemo}
-            className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 border border-amber-500/50 hover:border-amber-400 text-amber-300 hover:text-white font-mono text-xs font-bold transition-all shadow-md shadow-amber-950/40 flex items-center gap-1.5 active:scale-95"
+            className="hidden sm:flex px-2.5 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 border border-amber-500/50 hover:border-amber-400 text-amber-300 hover:text-white font-mono text-xs font-bold transition-all shadow-md shadow-amber-950/40 items-center gap-1.5 active:scale-95"
             title="Launch 2-Minute Judge Walkthrough"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-            <span className="hidden sm:inline">DEMO TOUR</span>
-            <span className="sm:hidden">DEMO</span>
+            <span className="hidden md:inline">DEMO TOUR</span>
+            <span className="md:hidden">DEMO</span>
           </button>
         )}
 
@@ -169,7 +169,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
         <div className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800/80 transition-colors"
+            className="relative p-1.5 sm:p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800/80 transition-colors"
             title="Notifications"
           >
             <Bell className="w-4 h-4" />
@@ -180,7 +180,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
 
           {/* Notifications Flyout */}
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl bg-[#0B0F19] border border-slate-800 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+            <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:absolute sm:right-0 sm:top-auto mt-2 sm:w-96 rounded-xl bg-[#0B0F19] border border-slate-800 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
               <div className="p-3.5 border-b border-slate-800 flex items-center justify-between bg-[#0E1524]">
                 <div className="flex items-center gap-2">
                   <ShieldAlert className="w-4 h-4 text-cyan-400" />
@@ -252,7 +252,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
           </button>
 
           {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-64 rounded-xl bg-[#0B0F19] border border-slate-800 shadow-2xl z-50 p-2 text-xs font-mono animate-in fade-in slide-in-from-top-2">
+            <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:absolute sm:right-0 sm:top-auto mt-2 sm:w-64 rounded-xl bg-[#0B0F19] border border-slate-800 shadow-2xl z-50 p-2 text-xs font-mono animate-in fade-in slide-in-from-top-2">
               <div className="px-3 py-2 border-b border-slate-800 mb-1">
                 <div className="text-slate-300 font-semibold">Active Command Profile</div>
                 <div className="text-[11px] text-slate-500">Department of Civic Analytics</div>

@@ -62,8 +62,8 @@ export const FullMapView: React.FC = () => {
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden bg-[#07090E]">
       {/* Hierarchical Drilldown Breadcrumb Strip (Rules 3 & 4: City → Ward → Road → Cluster → Issue) */}
-      <div className="px-4 py-2.5 bg-[#0B0F19] border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs font-mono shrink-0">
-        <div className="flex items-center gap-2 overflow-x-auto">
+      <div className="px-3 sm:px-4 py-2 bg-[#0B0F19] border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs font-mono shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar max-w-full">
           {/* Level 1: City */}
           <button
             onClick={() => {
@@ -71,13 +71,13 @@ export const FullMapView: React.FC = () => {
               setSelectedRoadId(null);
               setSelectedClusterId(null);
             }}
-            className={`px-2.5 py-1 rounded transition-colors ${
+            className={`px-2 py-1 rounded transition-colors whitespace-nowrap ${
               filters.ward === 'all' && !selectedRoadId && !selectedClusterId
                 ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/40'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            City (Metro Core)
+            City
           </button>
 
           <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0" />
@@ -90,7 +90,7 @@ export const FullMapView: React.FC = () => {
               setSelectedRoadId(null);
               setSelectedClusterId(null);
             }}
-            className={`bg-[#0E1524] border border-slate-800 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-cyan-500 ${
+            className={`bg-[#0E1524] border border-slate-800 rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan-500 whitespace-nowrap ${
               filters.ward !== 'all' ? 'text-cyan-300 font-bold border-cyan-500/30' : 'text-slate-400'
             }`}
           >
@@ -106,11 +106,11 @@ export const FullMapView: React.FC = () => {
           <select
             value={selectedRoadId || ''}
             onChange={(e) => setSelectedRoadId(e.target.value || null)}
-            className={`bg-[#0E1524] border border-slate-800 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-cyan-500 ${
+            className={`bg-[#0E1524] border border-slate-800 rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan-500 whitespace-nowrap ${
               selectedRoadId ? 'text-emerald-300 font-bold border-emerald-500/30' : 'text-slate-400'
             }`}
           >
-            <option value="">All Arterial Roads</option>
+            <option value="">All Roads</option>
             {METRO_ROADS.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name} ({r.health.toUpperCase()})
@@ -122,7 +122,7 @@ export const FullMapView: React.FC = () => {
             <>
               <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0" />
               {/* Level 4: Cluster */}
-              <span className="px-2 py-0.5 rounded bg-orange-950 text-orange-300 font-bold border border-orange-500/40 flex items-center gap-1">
+              <span className="px-2 py-0.5 rounded bg-orange-950 text-orange-300 font-bold border border-orange-500/40 flex items-center gap-1 whitespace-nowrap">
                 <span>Cluster {selectedClusterId}</span>
               </span>
             </>
@@ -132,7 +132,7 @@ export const FullMapView: React.FC = () => {
             <>
               <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0" />
               {/* Level 5: Issue */}
-              <span className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/40">
+              <span className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/40 whitespace-nowrap">
                 {selectedIssue.issueCode}
               </span>
             </>
@@ -155,8 +155,8 @@ export const FullMapView: React.FC = () => {
             <option value="waste_accumulation">Solid Waste</option>
           </select>
 
-          <span className="text-slate-400 text-[11px] hidden sm:inline">
-            {filteredIssues.length} Geocoded Points
+          <span className="text-slate-400 text-[11px] hidden md:inline">
+            {filteredIssues.length} Points
           </span>
         </div>
       </div>
@@ -164,7 +164,7 @@ export const FullMapView: React.FC = () => {
       {/* Main Map + Sidebar Split View */}
       <div className="flex-1 flex flex-col lg:flex-row relative overflow-hidden">
         {/* Full Interactive Map */}
-        <div className="flex-1 relative h-full">
+        <div className="flex-1 relative h-full min-h-[220px]">
           <GisMap
             heightClass="h-full rounded-none border-none"
             showControls={true}
@@ -180,7 +180,7 @@ export const FullMapView: React.FC = () => {
         </div>
 
         {/* Tactical Hierarchy Side Panel */}
-        <div className="w-full lg:w-[420px] bg-[#090D17] border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col h-80 lg:h-full z-10 shrink-0">
+        <div className="w-full lg:w-[420px] bg-[#090D17] border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col h-64 sm:h-72 lg:h-full z-10 shrink-0">
           {/* Panel Tab Switcher */}
           <div className="p-2 border-b border-slate-800 flex items-center gap-1 bg-[#0E1524]">
             <button

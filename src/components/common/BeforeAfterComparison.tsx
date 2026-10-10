@@ -45,11 +45,11 @@ export const BeforeAfterComparison: React.FC<BeforeAfterComparisonProps> = ({
   );
 
   return (
-    <div className="rounded-2xl bg-[#090D17] border border-slate-800 p-5 sm:p-6 shadow-2xl space-y-6">
+    <div className="rounded-2xl bg-[#090D17] border border-slate-800 p-4 sm:p-6 shadow-2xl space-y-5 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-800">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3 text-emerald-400" />
               LIFECYCLE RESOLUTION AUDIT
@@ -58,7 +58,7 @@ export const BeforeAfterComparison: React.FC<BeforeAfterComparisonProps> = ({
               {issue?.issueCode || 'INF-2026-902'}
             </span>
           </div>
-          <h3 className="text-lg sm:text-xl font-bold font-mono text-white mt-1">
+          <h3 className="text-base sm:text-xl font-bold font-mono text-white mt-1">
             {issue?.title || 'Arterial Pavement Rehabilitation & Manhole Collar Leveling'}
           </h3>
           <p className="text-xs text-slate-400 font-mono mt-0.5">
@@ -67,10 +67,10 @@ export const BeforeAfterComparison: React.FC<BeforeAfterComparisonProps> = ({
         </div>
 
         {/* View Mode Toggle */}
-        <div className="flex items-center rounded-lg bg-[#0E1524] border border-slate-800 p-1 text-xs font-mono self-start sm:self-auto">
+        <div className="flex items-center rounded-lg bg-[#0E1524] border border-slate-800 p-0.5 sm:p-1 text-[11px] sm:text-xs font-mono self-start sm:self-auto">
           <button
             onClick={() => setActiveViewMode('split')}
-            className={`px-3 py-1 rounded transition-colors ${
+            className={`px-2.5 sm:px-3 py-1 rounded transition-colors ${
               activeViewMode === 'split'
                 ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/40'
                 : 'text-slate-400 hover:text-white'
@@ -80,7 +80,7 @@ export const BeforeAfterComparison: React.FC<BeforeAfterComparisonProps> = ({
           </button>
           <button
             onClick={() => setActiveViewMode('side-by-side')}
-            className={`px-3 py-1 rounded transition-colors ${
+            className={`px-2.5 sm:px-3 py-1 rounded transition-colors ${
               activeViewMode === 'side-by-side'
                 ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/40'
                 : 'text-slate-400 hover:text-white'
@@ -92,18 +92,18 @@ export const BeforeAfterComparison: React.FC<BeforeAfterComparisonProps> = ({
       </div>
 
       {/* 4 Impact Delta Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-        <div className="p-3.5 rounded-xl bg-gradient-to-br from-[#121624] to-[#0A0E17] border border-slate-800 space-y-1">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3.5">
+        <div className="p-3 sm:p-3.5 rounded-xl bg-gradient-to-br from-[#121624] to-[#0A0E17] border border-slate-800 space-y-1">
           <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1">
             <TrendingDown className="w-3 h-3 text-emerald-400" />
             Severity Reduction
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono text-xl sm:text-2xl font-black text-rose-400 line-through opacity-80">
+          <div className="flex items-baseline gap-1.5 sm:gap-2">
+            <span className="font-mono text-lg sm:text-2xl font-black text-rose-400 line-through opacity-80">
               {comparison.beforeSeverityScore}
             </span>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
-            <span className="font-mono text-xl sm:text-2xl font-black text-emerald-400">
+            <ArrowRight className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-slate-500" />
+            <span className="font-mono text-lg sm:text-2xl font-black text-emerald-400">
               {comparison.afterSeverityScore}
             </span>
           </div>
@@ -112,12 +112,12 @@ export const BeforeAfterComparison: React.FC<BeforeAfterComparisonProps> = ({
           </div>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-gradient-to-br from-[#121624] to-[#0A0E17] border border-slate-800 space-y-1">
+        <div className="p-3 sm:p-3.5 rounded-xl bg-gradient-to-br from-[#121624] to-[#0A0E17] border border-slate-800 space-y-1">
           <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1">
             <Clock className="w-3 h-3 text-cyan-400" />
             Resolution Time
           </div>
-          <div className="font-mono text-xl sm:text-2xl font-black text-cyan-400">
+          <div className="font-mono text-lg sm:text-2xl font-black text-cyan-400">
             {comparison.resolutionTimeDays} Days
           </div>
           <div className="text-[10px] font-mono text-slate-400">
@@ -125,12 +125,12 @@ export const BeforeAfterComparison: React.FC<BeforeAfterComparisonProps> = ({
           </div>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-gradient-to-br from-[#121624] to-[#0A0E17] border border-slate-800 space-y-1">
+        <div className="p-3 sm:p-3.5 rounded-xl bg-gradient-to-br from-[#121624] to-[#0A0E17] border border-slate-800 space-y-1">
           <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1">
             <Users className="w-3 h-3 text-indigo-400" />
             Commuters Protected
           </div>
-          <div className="font-mono text-xl sm:text-2xl font-black text-slate-100">
+          <div className="font-mono text-lg sm:text-2xl font-black text-slate-100">
             ~{comparison.commutersProtected.toLocaleString()}
           </div>
           <div className="text-[10px] font-mono text-indigo-300">
@@ -138,7 +138,7 @@ export const BeforeAfterComparison: React.FC<BeforeAfterComparisonProps> = ({
           </div>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-gradient-to-br from-[#121624] to-[#0A0E17] border border-slate-800 space-y-1">
+        <div className="p-3 sm:p-3.5 rounded-xl bg-gradient-to-br from-[#121624] to-[#0A0E17] border border-slate-800 space-y-1">
           <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1">
             <ShieldCheck className="w-3 h-3 text-amber-400" />
             Repair Authority
@@ -154,39 +154,37 @@ export const BeforeAfterComparison: React.FC<BeforeAfterComparisonProps> = ({
 
       {/* Visual Image Inspection */}
       {activeViewMode === 'split' ? (
-        <div className="relative h-72 sm:h-96 w-full rounded-xl overflow-hidden border border-slate-800 select-none bg-black">
+        <div className="relative h-64 sm:h-96 w-full rounded-xl overflow-hidden border border-slate-800 select-none bg-black">
           {/* After image (Background full) */}
           <img
             src={comparison.afterImageUrl}
             alt="Resolved Infrastructure"
             className="absolute inset-0 w-full h-full object-cover"
           />
-          <div className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-md bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold backdrop-blur-md">
-            AFTER: RESOLVED (12/100)
+          <div className="absolute top-2.5 sm:top-3 right-2.5 sm:right-3 z-10 px-2 sm:px-2.5 py-1 rounded-md bg-emerald-950/85 border border-emerald-500/40 text-emerald-300 text-[10px] sm:text-xs font-mono font-bold backdrop-blur-md shadow-lg">
+            AFTER: RESOLVED ({comparison.afterSeverityScore}/100)
           </div>
 
-          {/* Before image (Clipped by slider) */}
-          <div
-            className="absolute inset-y-0 left-0 overflow-hidden"
-            style={{ width: `${sliderPos}%` }}
+          {/* Before image (Clipped by slider using CSS clip-path for exact full-width alignment) */}
+          <img
+            src={comparison.beforeImageUrl}
+            alt="Before Infrastructure Defect"
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+          />
+          <div 
+            className="absolute top-2.5 sm:top-3 left-2.5 sm:left-3 z-10 px-2 sm:px-2.5 py-1 rounded-md bg-rose-950/85 border border-rose-500/40 text-rose-300 text-[10px] sm:text-xs font-mono font-bold backdrop-blur-md shadow-lg transition-opacity"
+            style={{ opacity: sliderPos < 15 ? 0 : 1 }}
           >
-            <img
-              src={comparison.beforeImageUrl}
-              alt="Before Infrastructure Defect"
-              className="absolute inset-0 w-full h-full object-cover max-w-none"
-              style={{ width: '100%', minWidth: '100%', height: '100%' }}
-            />
-            <div className="absolute top-3 left-3 z-10 px-2.5 py-1 rounded-md bg-rose-950/80 border border-rose-500/40 text-rose-300 text-xs font-mono font-bold backdrop-blur-md">
-              BEFORE: CRITICAL (87/100)
-            </div>
+            BEFORE: CRITICAL ({comparison.beforeSeverityScore}/100)
           </div>
 
           {/* Slider divider line and draggable thumb */}
           <div
-            className="absolute inset-y-0 w-1 bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)] cursor-ew-resize z-20"
+            className="absolute inset-y-0 w-0.5 sm:w-1 bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)] cursor-ew-resize z-20"
             style={{ left: `${sliderPos}%` }}
           >
-            <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-cyan-500 border-2 border-white shadow-xl flex items-center justify-center text-slate-950 font-bold text-xs pointer-events-none">
+            <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-cyan-500 border-2 border-white shadow-xl flex items-center justify-center text-slate-950 font-bold text-xs pointer-events-none">
               ↔
             </div>
           </div>

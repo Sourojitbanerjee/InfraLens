@@ -110,3 +110,21 @@
 .panel-terminal-glow {
   box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.15), 0 4px 20px -2px rgba(0, 0, 0, 0.5);
 }
+
+/* Hide scrollbar for clean horizontal overflow rows (chips, tabs, breadcrumbs) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Safe area insets for mobile devices with notches / home indicator */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+}
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0.5rem));
+}
+
