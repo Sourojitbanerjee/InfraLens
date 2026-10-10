@@ -414,13 +414,14 @@ export const CommandPalette: React.FC = () => {
           </div>
 
           {/* Footer Shortcuts */}
-          <div className="px-4 py-2.5 bg-[#070A12] border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-400">
-            <div className="flex items-center gap-4">
+          <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-[#070A12] border-t border-slate-800/80 flex items-center justify-between text-[10px] sm:text-[11px] font-mono text-slate-400">
+            <div className="hidden sm:flex items-center gap-3">
               <span>↑↓ Navigate</span>
               <span>↵ Select</span>
               <span>ESC Close</span>
             </div>
-            <span className="text-cyan-400/80">InfraLens Tactical OS v1.0</span>
+            <span className="sm:hidden text-slate-500">Tap to select • ESC to close</span>
+            <span className="text-cyan-400/80">InfraLens OS v1.0</span>
           </div>
         </div>
       </div>

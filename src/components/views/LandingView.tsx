@@ -18,7 +18,7 @@ export const LandingView: React.FC = () => {
   const { setCurrentView } = useInfra();
 
   return (
-    <div className="min-h-screen bg-[#07090E] text-slate-100 flex flex-col justify-between">
+    <div className="min-h-screen bg-[#07090E] text-slate-100 flex flex-col justify-between overflow-x-hidden">
       <div>
         {/* Cinematic Hero Component */}
         <HeroCinematic />

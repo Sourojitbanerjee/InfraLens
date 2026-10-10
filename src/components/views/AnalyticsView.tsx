@@ -62,18 +62,21 @@ export const AnalyticsView: React.FC = () => {
         </div>
 
         {/* Time Filter */}
-        <div className="flex items-center rounded-lg bg-[#0E1524] border border-slate-800 p-1 text-xs font-mono">
+        <div className="flex items-center rounded-lg bg-[#0E1524] border border-slate-800 p-1 text-xs font-mono overflow-x-auto no-scrollbar">
           {(['7d', '30d', 'ytd'] as const).map((range) => (
             <button
               key={range}
               onClick={() => setTimeRange(range)}
-              className={`px-3 py-1 rounded-md transition-colors ${
+              className={`px-2.5 sm:px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
                 timeRange === range
                   ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/30'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              {range === '7d' ? 'Last 7 Days' : range === '30d' ? 'Last 30 Days' : 'Year to Date'}
+              <span className="sm:hidden">{range.toUpperCase()}</span>
+              <span className="hidden sm:inline">
+                {range === '7d' ? 'Last 7 Days' : range === '30d' ? 'Last 30 Days' : 'Year to Date'}
+              </span>
             </button>
           ))}
         </div>
@@ -167,7 +170,7 @@ export const AnalyticsView: React.FC = () => {
       {/* Chart Grid: Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Issues Over Time (8 Cols) */}
-        <div className="lg:col-span-8 p-5 rounded-2xl bg-[#090D17] border border-slate-800 shadow-xl space-y-4">
+        <div className="lg:col-span-8 min-w-0 p-4 sm:p-5 rounded-2xl bg-[#090D17] border border-slate-800 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
             <div>
               <h3 className="font-mono text-sm font-bold text-slate-100 uppercase tracking-wide">
@@ -229,7 +232,7 @@ export const AnalyticsView: React.FC = () => {
         </div>
 
         {/* Severity Distribution Donut (4 Cols) */}
-        <div className="lg:col-span-4 p-5 rounded-2xl bg-[#090D17] border border-slate-800 shadow-xl space-y-4">
+        <div className="lg:col-span-4 min-w-0 p-4 sm:p-5 rounded-2xl bg-[#090D17] border border-slate-800 shadow-xl space-y-4">
           <div className="border-b border-slate-800/80 pb-3">
             <h3 className="font-mono text-sm font-bold text-slate-100 uppercase tracking-wide">
               Severity Distribution
@@ -283,7 +286,7 @@ export const AnalyticsView: React.FC = () => {
       {/* Chart Grid: Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Ward Health Index Comparison (6 Cols) */}
-        <div className="lg:col-span-6 p-5 rounded-2xl bg-[#090D17] border border-slate-800 shadow-xl space-y-4">
+        <div className="lg:col-span-6 min-w-0 p-4 sm:p-5 rounded-2xl bg-[#090D17] border border-slate-800 shadow-xl space-y-4">
           <div className="border-b border-slate-800/80 pb-3">
             <h3 className="font-mono text-sm font-bold text-slate-100 uppercase tracking-wide">
               Ward Infrastructure Health Index
@@ -348,7 +351,7 @@ export const AnalyticsView: React.FC = () => {
         </div>
 
         {/* Resolution Time (MTTR) by Authority (6 Cols) */}
-        <div className="lg:col-span-6 p-5 rounded-2xl bg-[#090D17] border border-slate-800 shadow-xl space-y-4">
+        <div className="lg:col-span-6 min-w-0 p-4 sm:p-5 rounded-2xl bg-[#090D17] border border-slate-800 shadow-xl space-y-4">
           <div className="border-b border-slate-800/80 pb-3">
             <h3 className="font-mono text-sm font-bold text-slate-100 uppercase tracking-wide">
               Resolution Time (MTTR in Hours) by Department

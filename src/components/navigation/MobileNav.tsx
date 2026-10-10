@@ -43,7 +43,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onStartDemo }) => {
   return (
     <nav 
       aria-label="Mobile Navigation"
-      className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#080B13]/95 backdrop-blur-lg border-t border-slate-800/80 px-2 py-1.5 flex items-center justify-around shadow-2xl"
+      className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#080B13]/95 backdrop-blur-lg border-t border-slate-800/80 px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom,0.375rem))] flex items-center justify-around shadow-2xl"
     >
       {navItems.map((item) => {
         const isActive = currentView === item.view;

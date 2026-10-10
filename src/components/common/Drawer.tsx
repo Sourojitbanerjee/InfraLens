@@ -39,9 +39,9 @@ export const Drawer: React.FC<DrawerProps> = ({
         aria-hidden="true"
       />
 
-      <div className="fixed inset-y-0 right-0 pl-10 max-w-full flex">
+      <div className="fixed inset-y-0 right-0 pl-0 sm:pl-10 max-w-full flex">
         <div
-          className={`w-screen ${width} bg-[#0A0E17] border-l border-slate-800 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out`}
+          className={`w-full sm:w-screen ${width} bg-[#0A0E17] border-l border-slate-800 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out`}
           role="dialog"
           aria-modal="true"
         >

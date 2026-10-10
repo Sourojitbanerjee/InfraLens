@@ -74,9 +74,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   return (
     <div className={`space-y-3 bg-[#0A0E18] border border-slate-800 rounded-xl p-3.5 shadow-xl ${className}`}>
       {/* Top Filter Controls Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
         {/* Search Input */}
-        <div className="relative col-span-2">
+        <div className="relative col-span-1 sm:col-span-2">
           <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -99,7 +99,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <select
           value={filters.priority}
           onChange={(e) => setFilters((p) => ({ ...p, priority: e.target.value }))}
-          className={`bg-[#0E1524] border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500 ${
+          className={`w-full min-w-0 truncate bg-[#0E1524] border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500 ${
             filters.priority !== 'all' ? 'text-rose-400 font-bold border-rose-500/40' : 'text-slate-400'
           }`}
         >
@@ -115,7 +115,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <select
           value={filters.severity}
           onChange={(e) => setFilters((p) => ({ ...p, severity: e.target.value }))}
-          className={`bg-[#0E1524] border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500 ${
+          className={`w-full min-w-0 truncate bg-[#0E1524] border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500 ${
             filters.severity !== 'all' ? 'text-amber-400 font-bold border-amber-500/40' : 'text-slate-400'
           }`}
         >
@@ -130,7 +130,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <select
           value={filters.ward}
           onChange={(e) => setFilters((p) => ({ ...p, ward: e.target.value }))}
-          className={`bg-[#0E1524] border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500 ${
+          className={`w-full min-w-0 truncate bg-[#0E1524] border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500 ${
             filters.ward !== 'all' ? 'text-cyan-400 font-bold border-cyan-500/40' : 'text-slate-400'
           }`}
         >
@@ -146,7 +146,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <select
           value={filters.authority}
           onChange={(e) => setFilters((p) => ({ ...p, authority: e.target.value }))}
-          className={`bg-[#0E1524] border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500 ${
+          className={`w-full min-w-0 truncate bg-[#0E1524] border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500 ${
             filters.authority !== 'all' ? 'text-indigo-400 font-bold border-indigo-500/40' : 'text-slate-400'
           }`}
         >
@@ -162,7 +162,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <select
           value={filters.status}
           onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}
-          className={`bg-[#0E1524] border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500 ${
+          className={`w-full min-w-0 truncate bg-[#0E1524] border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500 ${
             filters.status !== 'all' ? 'text-emerald-400 font-bold border-emerald-500/40' : 'text-slate-400'
           }`}
         >
@@ -177,7 +177,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <select
           value={filters.dateRange}
           onChange={(e) => setFilters((p) => ({ ...p, dateRange: e.target.value }))}
-          className={`bg-[#0E1524] border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500 ${
+          className={`w-full min-w-0 truncate bg-[#0E1524] border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-500 ${
             filters.dateRange !== 'all' ? 'text-cyan-300 font-bold border-cyan-500/40' : 'text-slate-400'
           }`}
         >

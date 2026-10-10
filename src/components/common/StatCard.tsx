@@ -89,25 +89,25 @@ export const StatCard: React.FC<StatCardProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`relative rounded-xl border p-4 transition-all duration-200 ${accentGlow} ${
+      className={`relative rounded-xl border p-3 sm:p-4 transition-all duration-200 ${accentGlow} ${
         onClick ? 'cursor-pointer active:scale-[0.99]' : ''
       } ${active ? 'ring-1 ring-cyan-400/50 border-cyan-400/70 shadow-lg shadow-cyan-950/30' : ''}`}
     >
-      <div className="flex items-center justify-between text-slate-400 mb-2">
-        <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-          <span className={`w-1.5 h-1.5 rounded-full ${accentColor === 'rose' ? 'bg-rose-500 animate-pulse' : accentColor === 'emerald' ? 'bg-emerald-500' : 'bg-cyan-500'}`} />
-          {label}
+      <div className="flex items-center justify-between text-slate-400 mb-1.5">
+        <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5 truncate">
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${accentColor === 'rose' ? 'bg-rose-500 animate-pulse' : accentColor === 'emerald' ? 'bg-emerald-500' : 'bg-cyan-500'}`} />
+          <span className="truncate">{label}</span>
         </span>
-        {icon && <div className="text-slate-400">{icon}</div>}
+        {icon && <div className="text-slate-400 shrink-0">{icon}</div>}
       </div>
 
-      <div className="flex items-baseline justify-between">
-        <div className="flex items-baseline gap-2">
-          <span className={`text-2xl sm:text-3xl font-extrabold tracking-tight font-mono ${valueColor}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-1">
+        <div className="flex items-baseline gap-1.5 flex-wrap min-w-0">
+          <span className={`text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight font-mono ${valueColor}`}>
             {displayValue}
           </span>
           {subValue && (
-            <span className="text-xs text-slate-500 font-mono">
+            <span className="text-[10px] sm:text-xs text-slate-500 font-mono">
               {subValue}
             </span>
           )}
@@ -115,7 +115,7 @@ export const StatCard: React.FC<StatCardProps> = ({
 
         {trend && (
           <div
-            className={`text-[11px] font-mono px-2 py-0.5 rounded flex items-center gap-1 ${
+            className={`text-[9px] sm:text-[11px] font-mono px-1.5 sm:px-2 py-0.5 rounded flex items-center gap-1 shrink-0 ${
               trend.isNeutral
                 ? 'bg-slate-800 text-slate-400'
                 : trend.isPositive

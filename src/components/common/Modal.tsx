@@ -30,7 +30,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-4 text-center">
+      <div className="flex min-h-full items-center justify-center p-2.5 sm:p-4 text-center">
         <div
           className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
           onClick={onClose}
@@ -38,12 +38,12 @@ export const Modal: React.FC<ModalProps> = ({
         />
 
         <div
-          className={`relative transform overflow-hidden rounded-2xl bg-[#0D121F] border border-slate-800 text-left shadow-2xl transition-all w-full ${maxWidth} z-10`}
+          className={`relative transform overflow-hidden rounded-2xl bg-[#0D121F] border border-slate-800 text-left shadow-2xl transition-all w-full max-h-[92vh] flex flex-col ${maxWidth} z-10`}
           role="dialog"
           aria-modal="true"
         >
           {title && (
-            <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-[#090D17]">
+            <div className="flex items-center justify-between border-b border-slate-800 px-4 sm:px-6 py-3 sm:py-4 bg-[#090D17] shrink-0">
               <div className="text-base font-semibold text-slate-100">{title}</div>
               <button
                 onClick={onClose}
@@ -53,7 +53,7 @@ export const Modal: React.FC<ModalProps> = ({
               </button>
             </div>
           )}
-          <div className="p-6">{children}</div>
+          <div className="p-4 sm:p-6 overflow-y-auto">{children}</div>
         </div>
       </div>
     </div>

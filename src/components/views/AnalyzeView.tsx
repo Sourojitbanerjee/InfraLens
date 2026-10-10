@@ -178,45 +178,47 @@ export const AnalyzeView: React.FC = () => {
         </div>
 
         {/* Model Inference Engine Switcher (Rule 2 & 3 requirement) */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center rounded-xl bg-[#0E1524] border border-slate-800 p-1 text-xs font-mono">
-            <span className="text-slate-500 px-2 flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex items-center rounded-xl bg-[#0E1524] border border-slate-800 p-1 text-xs font-mono max-w-full overflow-x-auto no-scrollbar">
+            <span className="text-slate-500 px-1.5 sm:px-2 flex items-center gap-1.5 shrink-0">
               <Cpu className="w-3.5 h-3.5 text-cyan-400" />
               Engine:
             </span>
             <button
               onClick={() => handleSwitchEngine('mock')}
-              className={`px-3 py-1 rounded-lg transition-colors ${
+              className={`px-2.5 sm:px-3 py-1 rounded-lg transition-colors whitespace-nowrap ${
                 activeEngineType === 'mock'
                   ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/30'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Mock Edge Sim (Deterministic)
+              <span className="sm:hidden">Mock Edge</span>
+              <span className="hidden sm:inline">Mock Edge Sim (Deterministic)</span>
             </button>
             <button
               onClick={() => handleSwitchEngine('real')}
-              className={`px-3 py-1 rounded-lg transition-colors ${
+              className={`px-2.5 sm:px-3 py-1 rounded-lg transition-colors whitespace-nowrap ${
                 activeEngineType === 'real'
                   ? 'bg-indigo-950 text-indigo-300 font-bold border border-indigo-500/30'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Real YOLOv11 ONNX Adapter
+              <span className="sm:hidden">Real ONNX</span>
+              <span className="hidden sm:inline">Real YOLOv11 ONNX Adapter</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Pipeline 8-Stage Progress Ribbon (Rule 5) */}
-      <div className="hidden md:grid grid-cols-8 gap-1.5 p-2.5 rounded-xl bg-[#0A0E18] border border-slate-800 text-[10px] font-mono text-center">
+      {/* Pipeline 8-Stage Progress Ribbon (Responsive across mobile, tablet & desktop) */}
+      <div className="flex md:grid grid-cols-8 gap-1.5 p-2 sm:p-2.5 rounded-xl bg-[#0A0E18] border border-slate-800 text-[10px] font-mono text-center overflow-x-auto no-scrollbar whitespace-nowrap">
         {[
           { key: 'upload', label: '1. UPLOAD' },
-          { key: 'processing', label: '2. PROCESSING' },
+          { key: 'processing', label: '2. PROCESS' },
           { key: 'scanning', label: '3. AI SCAN' },
-          { key: 'object_detection', label: '4. DETECTION' },
+          { key: 'object_detection', label: '4. DETECT' },
           { key: 'severity_analysis', label: '5. SEVERITY' },
-          { key: 'geolocation', label: '6. GEOLOCATION' },
+          { key: 'geolocation', label: '6. GEO-GIS' },
           { key: 'impact_analysis', label: '7. IMPACT' },
           { key: 'priority_generated', label: '8. PRIORITY' },
         ].map((s, idx) => {
@@ -236,7 +238,7 @@ export const AnalyzeView: React.FC = () => {
           return (
             <div
               key={s.key}
-              className={`py-1 px-1 rounded transition-colors ${
+              className={`py-1 px-2 sm:px-1 rounded transition-colors shrink-0 md:shrink ${
                 isCurrent
                   ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/40 animate-pulse'
                   : isPassed
@@ -427,7 +429,7 @@ export const AnalyzeView: React.FC = () => {
             </div>
 
             {/* Upload & Location Controls Bar */}
-            <div className="p-4 bg-[#0B0F19] border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div className="p-3 sm:p-4 bg-[#0B0F19] border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -436,10 +438,10 @@ export const AnalyzeView: React.FC = () => {
                 className="hidden"
               />
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-3 py-1.5 rounded-lg bg-[#141C2E] hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-mono font-medium flex items-center gap-2 transition-colors"
+                  className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#141C2E] hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-mono font-medium flex items-center gap-1.5 sm:gap-2 transition-colors"
                 >
                   <FileImage className="w-3.5 h-3.5 text-cyan-400" />
                   <span>Browse Image</span>
@@ -447,7 +449,7 @@ export const AnalyzeView: React.FC = () => {
 
                 <button
                   onClick={() => startAnalysis(selectedImage, activePresetId)}
-                  className="px-3 py-1.5 rounded-lg bg-[#141C2E] hover:bg-cyan-950 border border-cyan-500/30 text-cyan-300 text-xs font-mono font-medium flex items-center gap-2 transition-colors"
+                  className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#141C2E] hover:bg-cyan-950 border border-cyan-500/30 text-cyan-300 text-xs font-mono font-medium flex items-center gap-1.5 sm:gap-2 transition-colors"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Re-scan</span>
@@ -455,14 +457,14 @@ export const AnalyzeView: React.FC = () => {
 
                 <button
                   onClick={() => setIsPinModalOpen(true)}
-                  className="px-3 py-1.5 rounded-lg bg-[#161326] hover:bg-indigo-950 border border-indigo-500/30 text-indigo-300 text-xs font-mono font-medium flex items-center gap-2 transition-colors"
+                  className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#161326] hover:bg-indigo-950 border border-indigo-500/30 text-indigo-300 text-xs font-mono font-medium flex items-center gap-1.5 sm:gap-2 transition-colors"
                 >
                   <MapPin className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Set Manual GPS Pin</span>
+                  <span>Set GPS Pin</span>
                 </button>
               </div>
 
-              <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
+              <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5 justify-center sm:justify-start">
                 <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
                 <span>{coordinates.lat.toFixed(4)}° N, {coordinates.lon.toFixed(4)}° W</span>
               </div>

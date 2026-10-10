@@ -8,7 +8,7 @@ export const ToastContainer: React.FC = () => {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+    <div className="fixed bottom-20 lg:bottom-4 inset-x-4 sm:inset-x-auto sm:right-4 z-50 flex flex-col gap-2 max-w-sm w-auto sm:w-full pointer-events-none">
       {toasts.map((toast) => {
         const icon = {
           success: <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />,
