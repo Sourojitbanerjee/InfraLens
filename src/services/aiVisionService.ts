@@ -9,10 +9,10 @@ import {
 } from '../types/infrastructure';
 import { DetectionServiceFactory, CLASS_TO_CATEGORY } from './detectionService';
 import { SeverityEngine } from './severityEngine';
-import { GisEngine } from './gisEngine';
 import { ImpactEngine } from './impactEngine';
 import { PriorityEngine } from './priorityEngine';
 import { AuthorityResolver } from './authorityResolver';
+import { AnalysisOutcomeStatus, ImageValidationResult } from './cv/types';
 
 export type AnalysisStage = 
   | 'idle' 
@@ -35,17 +35,23 @@ export interface AiInferenceResult {
   dominantSeverity: Severity;
   severityScore: number;
   confidence: number;
-  impact: ImpactAssessment;
-  priorityExplainability: PriorityExplainability;
+  impact: ImpactAssessment | null;
+  priorityExplainability: PriorityExplainability | null;
   recommendedAction: string;
   suggestedAuthorityId: string;
   departmentName: string;
   modelEngineName: string;
+
+  // Evidence-based validation & outcome statuses (Phase 2 & Phase 6)
+  outcomeStatus: AnalysisOutcomeStatus;
+  validationResult: ImageValidationResult;
+  isActionable: boolean;
+  statusExplanation: string;
 }
 
 export class AiVisionService {
   /**
-   * Run end-to-end AI Street Analysis using active DetectionService (8-stage sequence)
+   * Run end-to-end AI Street Analysis using active DetectionService with strict validation
    */
   static async analyzeStreetImage(
     imageUrl: string,
@@ -58,26 +64,102 @@ export class AiVisionService {
 
     // Stage 1: UPLOAD
     onProgress?.('upload', 12);
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 120));
 
-    // Stage 2: IMAGE PROCESSING
+    // Stage 2: IMAGE PROCESSING & INTEGRITY VALIDATION
     onProgress?.('processing', 25);
-    await new Promise((r) => setTimeout(r, 220));
+    const detectionService = DetectionServiceFactory.getService();
+    const serviceResult = await detectionService.detect(imageUrl, presetId);
+    await new Promise((r) => setTimeout(r, 120));
+
+    // Check for Service Unavailable
+    if (serviceResult.isServiceUnavailable) {
+      onProgress?.('completed', 100);
+      return {
+        imageUrl,
+        detections: [],
+        structuredDetections: [],
+        dominantCategory: 'road_damage',
+        dominantSeverity: 'healthy',
+        severityScore: 0,
+        confidence: 0,
+        impact: null,
+        priorityExplainability: null,
+        recommendedAction: 'INFERENCE BACKEND OFFLINE',
+        suggestedAuthorityId: 'none',
+        departmentName: 'Service Offline',
+        modelEngineName: serviceResult.modelEngineName,
+        outcomeStatus: 'service_unavailable',
+        validationResult: serviceResult.validation,
+        isActionable: false,
+        statusExplanation: serviceResult.errorMessage || 'Inference backend service is currently unreachable.',
+      };
+    }
+
+    // Check for Rejected Image (Blank White, Blank Black, Non-Infrastructure, Corrupt)
+    if (!serviceResult.validation.isValid) {
+      onProgress?.('completed', 100);
+      const reasonMsg = serviceResult.validation.rejectionMessage || 'Image does not meet infrastructure inspection criteria.';
+
+      return {
+        imageUrl,
+        detections: [],
+        structuredDetections: [],
+        dominantCategory: 'road_damage',
+        dominantSeverity: 'healthy',
+        severityScore: 0,
+        confidence: 0,
+        impact: null,
+        priorityExplainability: null,
+        recommendedAction: 'IMAGE REJECTED — NO ACTION REQUIRED',
+        suggestedAuthorityId: 'none',
+        departmentName: 'Unassigned',
+        modelEngineName: serviceResult.modelEngineName,
+        outcomeStatus: 'image_rejected',
+        validationResult: serviceResult.validation,
+        isActionable: false,
+        statusExplanation: reasonMsg,
+      };
+    }
 
     // Stage 3: AI SCANNING
-    onProgress?.('scanning', 38);
-    await new Promise((r) => setTimeout(r, 250));
+    onProgress?.('scanning', 40);
+    await new Promise((r) => setTimeout(r, 150));
 
     // Stage 4: OBJECT DETECTION
-    onProgress?.('object_detection', 50);
-    const detectionService = DetectionServiceFactory.getService();
-    const rawDetections = await detectionService.detect(presetId || imageUrl);
-    await new Promise((r) => setTimeout(r, 180));
+    onProgress?.('object_detection', 55);
+    const rawDetections = serviceResult.detections;
+    await new Promise((r) => setTimeout(r, 120));
 
     // Stage 5: SEVERITY ANALYSIS
-    onProgress?.('severity_analysis', 63);
+    onProgress?.('severity_analysis', 68);
 
-    // Stage 4: Run Severity Engine across detections
+    // If zero defects were detected on valid infrastructure (e.g. clean road without damage):
+    if (rawDetections.length === 0) {
+      onProgress?.('completed', 100);
+
+      return {
+        imageUrl,
+        detections: [],
+        structuredDetections: [],
+        dominantCategory: 'road_damage',
+        dominantSeverity: 'healthy',
+        severityScore: 0,
+        confidence: serviceResult.validation.sceneConfidence || 95,
+        impact: null,
+        priorityExplainability: null,
+        recommendedAction: 'NOMINAL INFRASTRUCTURE — NO DEFECTS DETECTED',
+        suggestedAuthorityId: 'none',
+        departmentName: 'Public Works Surveillance (Nominal)',
+        modelEngineName: serviceResult.modelEngineName,
+        outcomeStatus: 'nominal_infrastructure',
+        validationResult: serviceResult.validation,
+        isActionable: false,
+        statusExplanation: 'Nominal Surface: Visual inspection verified intact infrastructure with no actionable defects in this frame.',
+      };
+    }
+
+    // Valid defects detected: Run physical severity engine
     const scoredDetections: Detection[] = rawDetections.map((det) => {
       const sevResult = SeverityEngine.calculateSeverity(det.type, det.confidence, det.metadata);
       return {
@@ -87,16 +169,9 @@ export class AiVisionService {
       };
     });
 
-    const primaryDet = scoredDetections[0] || {
-      id: 'det-def',
-      type: 'pothole' as DetectionClass,
-      typeLabel: 'Asphalt Pothole',
-      confidence: 94,
-      severity: 'critical' as Severity,
-      severityScore: 87,
-      metadata: { roadCoveragePct: 15 },
-      boundingBox: { x: 30, y: 50, width: 35, height: 35 },
-    };
+    // Sort descending by severity score
+    scoredDetections.sort((a, b) => b.severityScore - a.severityScore);
+    const primaryDet = scoredDetections[0];
 
     const category = CLASS_TO_CATEGORY[primaryDet.type]?.category || 'road_damage';
     const severity = primaryDet.severity;
@@ -104,13 +179,13 @@ export class AiVisionService {
     const confidence = primaryDet.confidence;
 
     // Stage 6: GEOLOCATION
-    onProgress?.('geolocation', 75);
-    await new Promise((r) => setTimeout(r, 180));
+    onProgress?.('geolocation', 78);
+    await new Promise((r) => setTimeout(r, 100));
 
     // Stage 7: IMPACT ANALYSIS
     onProgress?.('impact_analysis', 88);
     const impact = ImpactEngine.assessImpact(lat, lon, category, severityScore);
-    await new Promise((r) => setTimeout(r, 180));
+    await new Promise((r) => setTimeout(r, 100));
 
     // Stage 8: PRIORITY GENERATED
     onProgress?.('priority_generated', 96);
@@ -124,9 +199,9 @@ export class AiVisionService {
       nearbyRisks: impact.nearbyRisks,
       category,
     });
-    await new Promise((r) => setTimeout(r, 160));
+    await new Promise((r) => setTimeout(r, 100));
 
-    // Authority Resolver
+    // Route Authority
     const authRoute = AuthorityResolver.resolve(
       { latitude: lat, longitude: lon, address: 'Detected Location', ward: 'Ward 6', zone: 'Urban Arterial' },
       category,
@@ -165,7 +240,11 @@ export class AiVisionService {
       recommendedAction: authRoute.recommendedAction,
       suggestedAuthorityId: authRoute.authority.id,
       departmentName: authRoute.departmentName,
-      modelEngineName: detectionService.name,
+      modelEngineName: serviceResult.modelEngineName,
+      outcomeStatus: 'defects_detected',
+      validationResult: serviceResult.validation,
+      isActionable: true,
+      statusExplanation: `Actionable defect detected: ${primaryDet.typeLabel} with severity ${severityScore}/100.`,
     };
   }
 }

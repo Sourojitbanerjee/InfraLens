@@ -2,29 +2,28 @@ import React, { useState, useRef } from 'react';
 import { useInfra } from '../../context/InfraContext';
 import { SAMPLE_STREET_IMAGES, SampleStreetPreset } from '../../data/sampleStreetImages';
 import { AiVisionService, AnalysisStage, AiInferenceResult } from '../../services/aiVisionService';
-import { DetectionServiceFactory, MockDetectionService, RealDetectionService } from '../../services/detectionService';
+import { DetectionServiceFactory, LocalCvDetectionService, RealDetectionService } from '../../services/detectionService';
 import { SeverityIndicator } from '../common/SeverityIndicator';
-import { Badge } from '../common/Badge';
 import { Modal } from '../common/Modal';
 import { 
-  Camera, 
-  UploadCloud, 
   Scan, 
   Send, 
   RotateCcw, 
   MapPin, 
-  Users, 
-  Sparkles, 
-  Layers, 
   FileImage,
   Cpu,
   ShieldCheck,
   Building2,
   Crosshair,
-  CheckCircle,
+  CheckCircle2,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  Sliders,
+  Info,
+  XCircle,
   HelpCircle,
-  ArrowRight,
-  AlertTriangle
+  Server
 } from 'lucide-react';
 
 export const AnalyzeView: React.FC = () => {
@@ -39,15 +38,17 @@ export const AnalyzeView: React.FC = () => {
   const [customImageLocation, setCustomImageLocation] = useState('4th Street & Bryant Blvd Corridor');
   const [coordinates, setCoordinates] = useState<{ lat: number; lon: number }>({ lat: 37.7792, lon: -122.4191 });
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [activeEngineType, setActiveEngineType] = useState<'mock' | 'real'>('mock');
+  const [activeEngineType, setActiveEngineType] = useState<'local' | 'real'>('local');
   const [showErrorDetails, setShowErrorDetails] = useState(false);
+  const [showAnnotations, setShowAnnotations] = useState(true);
+  const [showTelemetryDrawer, setShowTelemetryDrawer] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSwitchEngine = (type: 'mock' | 'real') => {
+  const handleSwitchEngine = (type: 'local' | 'real') => {
     setActiveEngineType(type);
-    if (type === 'mock') {
-      DetectionServiceFactory.setService(new MockDetectionService());
+    if (type === 'local') {
+      DetectionServiceFactory.setService(new LocalCvDetectionService());
     } else {
       DetectionServiceFactory.setService(new RealDetectionService());
     }
@@ -116,7 +117,9 @@ export const AnalyzeView: React.FC = () => {
   };
 
   const handleDispatchToCommandCenter = async () => {
-    if (!inferenceResult) return;
+    if (!inferenceResult || !inferenceResult.isActionable || !inferenceResult.priorityExplainability || !inferenceResult.impact) {
+      return;
+    }
     setIsSubmitting(true);
 
     try {
@@ -169,15 +172,15 @@ export const AnalyzeView: React.FC = () => {
               AI STREET ANALYSIS
             </h1>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">
-              STREET-LENS v3.4
+              EVIDENCE-CV v2.4
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 font-mono">
-            Full Pipeline: IMAGE → COMPUTER VISION → SEVERITY → GPS → GIS → CLUSTERING → IMPACT → PRIORITY → DISPATCH
+            Pipeline: VALIDATE → SCENE CHECK → COMPUTER VISION → SEVERITY → GIS → IMPACT → PRIORITY
           </p>
         </div>
 
-        {/* Model Inference Engine Switcher (Rule 2 & 3 requirement) */}
+        {/* Model Inference Engine Switcher */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center rounded-xl bg-[#0E1524] border border-slate-800 p-1 text-xs font-mono max-w-full overflow-x-auto no-scrollbar">
             <span className="text-slate-500 px-1.5 sm:px-2 flex items-center gap-1.5 shrink-0">
@@ -185,15 +188,15 @@ export const AnalyzeView: React.FC = () => {
               Engine:
             </span>
             <button
-              onClick={() => handleSwitchEngine('mock')}
+              onClick={() => handleSwitchEngine('local')}
               className={`px-2.5 sm:px-3 py-1 rounded-lg transition-colors whitespace-nowrap ${
-                activeEngineType === 'mock'
+                activeEngineType === 'local'
                   ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/30'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <span className="sm:hidden">Mock Edge</span>
-              <span className="hidden sm:inline">Mock Edge Sim (Deterministic)</span>
+              <span className="sm:hidden">Local CV</span>
+              <span className="hidden sm:inline">Local Vision Engine (In-Browser CV)</span>
             </button>
             <button
               onClick={() => handleSwitchEngine('real')}
@@ -203,18 +206,18 @@ export const AnalyzeView: React.FC = () => {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <span className="sm:hidden">Real ONNX</span>
-              <span className="hidden sm:inline">Real YOLOv11 ONNX Adapter</span>
+              <span className="sm:hidden">Backend API</span>
+              <span className="hidden sm:inline">Real Inference Backend (REST :3001)</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Pipeline 8-Stage Progress Ribbon (Responsive across mobile, tablet & desktop) */}
+      {/* Pipeline 8-Stage Progress Ribbon */}
       <div className="flex md:grid grid-cols-8 gap-1.5 p-2 sm:p-2.5 rounded-xl bg-[#0A0E18] border border-slate-800 text-[10px] font-mono text-center overflow-x-auto no-scrollbar whitespace-nowrap">
         {[
           { key: 'upload', label: '1. UPLOAD' },
-          { key: 'processing', label: '2. PROCESS' },
+          { key: 'processing', label: '2. VALIDATE' },
           { key: 'scanning', label: '3. AI SCAN' },
           { key: 'object_detection', label: '4. DETECT' },
           { key: 'severity_analysis', label: '5. SEVERITY' },
@@ -252,7 +255,7 @@ export const AnalyzeView: React.FC = () => {
         })}
       </div>
 
-      {/* Main Analysis Layout: Left Stage & Right Panel */}
+      {/* Main Analysis Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Col: Upload & Visualization Canvas (7 Cols) */}
         <div className="lg:col-span-7 space-y-4">
@@ -283,7 +286,13 @@ export const AnalyzeView: React.FC = () => {
                 <span
                   className={`font-bold uppercase ${
                     stage === 'completed'
-                      ? 'text-emerald-400'
+                      ? inferenceResult?.outcomeStatus === 'image_rejected'
+                        ? 'text-amber-400'
+                        : inferenceResult?.outcomeStatus === 'nominal_infrastructure'
+                        ? 'text-emerald-400'
+                        : inferenceResult?.outcomeStatus === 'service_unavailable'
+                        ? 'text-rose-400'
+                        : 'text-cyan-400'
                       : stage === 'scanning'
                       ? 'text-cyan-400 animate-pulse'
                       : 'text-amber-400'
@@ -294,13 +303,13 @@ export const AnalyzeView: React.FC = () => {
                     : stage === 'upload'
                     ? '1. UPLOADING IMAGE'
                     : stage === 'processing'
-                    ? '2. PREPROCESSING & TENSORS'
+                    ? '2. VALIDATION & BLANK-REJECTION'
                     : stage === 'scanning'
                     ? '3. AI SCANNING'
                     : stage === 'object_detection'
-                    ? '4. OBJECT DETECTION'
+                    ? '4. EVIDENCE DETECTION'
                     : stage === 'severity_analysis'
-                    ? '5. SEVERITY COMPUTATION'
+                    ? '5. PHYSICAL SEVERITY ANALYSIS'
                     : stage === 'geolocation'
                     ? '6. GIS GEOCODING'
                     : stage === 'impact_analysis'
@@ -309,14 +318,36 @@ export const AnalyzeView: React.FC = () => {
                     ? '8. PRIORITY GENERATED'
                     : stage === 'error'
                     ? 'INGEST FAILED'
+                    : inferenceResult?.outcomeStatus === 'image_rejected'
+                    ? 'IMAGE REJECTED'
+                    : inferenceResult?.outcomeStatus === 'nominal_infrastructure'
+                    ? 'NOMINAL INFRASTRUCTURE'
+                    : inferenceResult?.outcomeStatus === 'service_unavailable'
+                    ? 'BACKEND OFFLINE'
                     : 'PIPELINE COMPLETE'}
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-500 font-mono">
-                  {DetectionServiceFactory.getService().isSimulated ? 'SIMULATED' : 'LIVE ONNX'}
-                </span>
+              <div className="flex items-center gap-3">
+                {/* Original vs Annotated Toggle */}
+                {inferenceResult && inferenceResult.detections.length > 0 && (
+                  <button
+                    onClick={() => setShowAnnotations(!showAnnotations)}
+                    className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                  >
+                    {showAnnotations ? (
+                      <>
+                        <EyeOff className="w-3 h-3 text-cyan-400" />
+                        <span>Hide Boxes</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-3 h-3 text-slate-400" />
+                        <span>Show Boxes</span>
+                      </>
+                    )}
+                  </button>
+                )}
                 <span className="text-cyan-400 font-bold">{progressPercent}%</span>
               </div>
             </div>
@@ -345,22 +376,6 @@ export const AnalyzeView: React.FC = () => {
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>TRY AGAIN</span>
                   </button>
-                  <div className="pt-2">
-                    <button
-                      onClick={() => setShowErrorDetails(!showErrorDetails)}
-                      className="text-[11px] font-mono text-slate-500 hover:text-slate-300 underline"
-                    >
-                      {showErrorDetails ? 'Hide technical diagnostics' : 'Technical details'}
-                    </button>
-                    {showErrorDetails && (
-                      <div className="mt-2 text-left p-3 rounded-lg bg-black/90 border border-slate-800 text-[10px] font-mono text-slate-400 space-y-1">
-                        <div>ENGINE: ONNX Runtime WASM v1.17.0</div>
-                        <div>STATUS: ERR_IMAGE_DECODE_STREAM_TIMEOUT</div>
-                        <div>IMAGE_URI: {selectedImage.substring(0, 48)}...</div>
-                        <div>RECOVERY: Fallback to simulated heuristic inference available.</div>
-                      </div>
-                    )}
-                  </div>
                 </div>
               ) : selectedImage ? (
                 <>
@@ -371,14 +386,16 @@ export const AnalyzeView: React.FC = () => {
                   />
 
                   {/* Neural Grid Overlay */}
-                  <div
-                    className="absolute inset-0 pointer-events-none opacity-20"
-                    style={{
-                      backgroundImage:
-                        'linear-gradient(to right, #06B6D4 1px, transparent 1px), linear-gradient(to bottom, #06B6D4 1px, transparent 1px)',
-                      backgroundSize: '36px 36px',
-                    }}
-                  />
+                  {showAnnotations && (
+                    <div
+                      className="absolute inset-0 pointer-events-none opacity-20"
+                      style={{
+                        backgroundImage:
+                          'linear-gradient(to right, #06B6D4 1px, transparent 1px), linear-gradient(to bottom, #06B6D4 1px, transparent 1px)',
+                        backgroundSize: '36px 36px',
+                      }}
+                    />
+                  )}
 
                   {/* Laser Scanning Beam */}
                   {stage === 'scanning' && (
@@ -389,8 +406,9 @@ export const AnalyzeView: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Bounding Box Overlays */}
-                  {inferenceResult &&
+                  {/* Bounding Box Overlays (Only rendered if showAnnotations is enabled) */}
+                  {showAnnotations &&
+                    inferenceResult &&
                     inferenceResult.detections.map((det) => (
                       <div
                         key={det.id}
@@ -417,10 +435,69 @@ export const AnalyzeView: React.FC = () => {
                         </div>
                       </div>
                     ))}
+
+                  {/* Watermark/Status Stamp when image is rejected or nominal */}
+                  {inferenceResult && inferenceResult.outcomeStatus === 'image_rejected' && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-6 z-20">
+                      <div className="p-4 rounded-xl bg-amber-950/90 border border-amber-500/50 max-w-md text-center space-y-2 shadow-2xl">
+                        <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto" />
+                        <h4 className="font-mono text-sm font-bold text-amber-200 uppercase">
+                          Image Rejected By Validation Pipeline
+                        </h4>
+                        <p className="font-mono text-xs text-amber-300/90">
+                          {inferenceResult.statusExplanation}
+                        </p>
+                        <p className="font-mono text-[10px] text-slate-400 pt-1">
+                          InfraLens does not fabricate defects on blank, uniform, or non-infrastructure images.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {inferenceResult && inferenceResult.outcomeStatus === 'nominal_infrastructure' && (
+                    <div className="absolute bottom-4 left-4 right-4 bg-emerald-950/90 border border-emerald-500/60 rounded-xl p-3 flex items-center justify-between z-20 backdrop-blur-md">
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                        <div>
+                          <div className="font-mono text-xs font-bold text-emerald-200">
+                            NOMINAL INFRASTRUCTURE — ZERO DEFECTS DETECTED
+                          </div>
+                          <div className="font-mono text-[10px] text-emerald-300/80">
+                            Surface verified intact. No potholes, fissures, or hazards detected.
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-300 border border-emerald-500/40">
+                        HEALTHY SURFACE
+                      </span>
+                    </div>
+                  )}
+
+                  {inferenceResult && inferenceResult.outcomeStatus === 'service_unavailable' && (
+                    <div className="absolute inset-0 bg-black/65 backdrop-blur-[2px] flex items-center justify-center p-6 z-20">
+                      <div className="p-4 rounded-xl bg-rose-950/90 border border-rose-500/50 max-w-md text-center space-y-2 shadow-2xl">
+                        <Server className="w-8 h-8 text-rose-400 mx-auto" />
+                        <h4 className="font-mono text-sm font-bold text-rose-200 uppercase">
+                          Inference Backend Offline
+                        </h4>
+                        <p className="font-mono text-xs text-rose-300/90">
+                          {inferenceResult.statusExplanation}
+                        </p>
+                        <div className="pt-2">
+                          <button
+                            onClick={() => handleSwitchEngine('local')}
+                            className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-xs font-bold transition-all"
+                          >
+                            Switch to Local Vision Engine
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="text-center p-8 space-y-3">
-                  <UploadCloud className="w-12 h-12 text-slate-500 mx-auto" />
+                  <FileImage className="w-12 h-12 text-slate-500 mx-auto" />
                   <p className="text-sm font-mono text-slate-400">
                     Drag and drop high-resolution street photo here or click browse
                   </p>
@@ -462,6 +539,14 @@ export const AnalyzeView: React.FC = () => {
                   <MapPin className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Set GPS Pin</span>
                 </button>
+
+                <button
+                  onClick={() => setShowTelemetryDrawer(!showTelemetryDrawer)}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#0F172A] hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-mono font-medium flex items-center gap-1.5 sm:gap-2 transition-colors"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Metrics</span>
+                </button>
               </div>
 
               <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5 justify-center sm:justify-start">
@@ -469,6 +554,47 @@ export const AnalyzeView: React.FC = () => {
                 <span>{coordinates.lat.toFixed(4)}° N, {coordinates.lon.toFixed(4)}° W</span>
               </div>
             </div>
+
+            {/* Expandable Image Validation Telemetry Drawer */}
+            {showTelemetryDrawer && inferenceResult?.validationResult && (
+              <div className="p-4 bg-[#070B14] border-t border-slate-800 text-xs font-mono space-y-2 animate-in fade-in">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+                  <span className="text-cyan-400 font-bold flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5" />
+                    Image Validation & Photometric Telemetry
+                  </span>
+                  <span className="text-slate-400 text-[10px]">
+                    Scene: <strong className="text-white uppercase">{inferenceResult.validationResult.sceneType}</strong>
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
+                  <div className="p-2 rounded bg-slate-900/60 border border-slate-800">
+                    <div className="text-slate-500 text-[10px]">MEAN LUMINANCE</div>
+                    <div className="font-bold text-white mt-0.5">
+                      {inferenceResult.validationResult.metrics.meanLuminance.toFixed(1)} / 255
+                    </div>
+                  </div>
+                  <div className="p-2 rounded bg-slate-900/60 border border-slate-800">
+                    <div className="text-slate-500 text-[10px]">RMS CONTRAST</div>
+                    <div className="font-bold text-white mt-0.5">
+                      {inferenceResult.validationResult.metrics.rmsContrast.toFixed(1)}
+                    </div>
+                  </div>
+                  <div className="p-2 rounded bg-slate-900/60 border border-slate-800">
+                    <div className="text-slate-500 text-[10px]">EDGE ENERGY</div>
+                    <div className="font-bold text-white mt-0.5">
+                      {inferenceResult.validationResult.metrics.edgeEnergy.toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="p-2 rounded bg-slate-900/60 border border-slate-800">
+                    <div className="text-slate-500 text-[10px]">VALIDATION STATUS</div>
+                    <div className={`font-bold mt-0.5 ${inferenceResult.validationResult.isValid ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {inferenceResult.validationResult.isValid ? 'VERIFIED INFRA' : 'REJECTED'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -480,7 +606,7 @@ export const AnalyzeView: React.FC = () => {
                 <Scan className="w-4 h-4 text-cyan-400" />
                 AI Inference Telemetry
               </h2>
-              {inferenceResult && (
+              {inferenceResult && inferenceResult.priorityExplainability ? (
                 <span
                   className={`text-[11px] font-mono font-extrabold px-2 py-0.5 rounded ${
                     inferenceResult.priorityExplainability.priority === 'P0'
@@ -490,7 +616,11 @@ export const AnalyzeView: React.FC = () => {
                 >
                   {inferenceResult.priorityExplainability.priority} {inferenceResult.priorityExplainability.priorityLabel}
                 </span>
-              )}
+              ) : inferenceResult?.outcomeStatus === 'nominal_infrastructure' ? (
+                <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                  NOMINAL (P4)
+                </span>
+              ) : null}
             </div>
 
             {!inferenceResult ? (
@@ -500,7 +630,87 @@ export const AnalyzeView: React.FC = () => {
                 </div>
                 <div>Awaiting neural analysis completion...</div>
               </div>
+            ) : inferenceResult.outcomeStatus === 'image_rejected' ? (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 space-y-2 text-xs font-mono">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold">
+                    <XCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>IMAGE INTEGRITY VIOLATION</span>
+                  </div>
+                  <p className="text-amber-200/90 text-[11px]">
+                    {inferenceResult.statusExplanation}
+                  </p>
+                  <div className="pt-2 border-t border-amber-500/20 text-[10px] text-slate-400 space-y-1">
+                    <div>• Blank white/black pages are strictly rejected.</div>
+                    <div>• Non-infrastructure images do not produce fabricated defects.</div>
+                    <div>• Upload a high-resolution photograph of an urban street or roadway.</div>
+                  </div>
+                </div>
+
+                <button
+                  disabled
+                  className="w-full py-3 px-4 rounded-xl bg-slate-900 border border-slate-800 text-slate-500 font-bold font-mono text-xs cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <XCircle className="w-4 h-4 text-slate-600" />
+                  <span>DISPATCH DISABLED (IMAGE REJECTED)</span>
+                </button>
+              </div>
+            ) : inferenceResult.outcomeStatus === 'nominal_infrastructure' ? (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 space-y-2 text-xs font-mono">
+                  <div className="flex items-center gap-2 text-emerald-300 font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>NOMINAL INFRASTRUCTURE VERIFIED</span>
+                  </div>
+                  <p className="text-emerald-200/90 text-[11px]">
+                    {inferenceResult.statusExplanation}
+                  </p>
+                  <div className="pt-2 border-t border-emerald-500/20 text-[10px] text-slate-300 flex items-center justify-between">
+                    <span>Defects Detected: <strong className="text-emerald-400 font-bold">0</strong></span>
+                    <span>Scene: <strong className="text-white uppercase">{inferenceResult.validationResult.sceneType}</strong></span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#0B101D] border border-slate-800 space-y-1.5 text-xs font-mono">
+                  <div className="text-[10px] uppercase text-slate-400 font-bold">Inspection Audit</div>
+                  <div className="text-slate-300 text-[11px]">
+                    The surface conforms to municipal safety thresholds. No work order is required.
+                  </div>
+                </div>
+
+                <button
+                  disabled
+                  className="w-full py-3 px-4 rounded-xl bg-slate-900 border border-slate-800 text-slate-500 font-bold font-mono text-xs cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>NO DISPATCH REQUIRED (SURFACE NOMINAL)</span>
+                </button>
+              </div>
+            ) : inferenceResult.outcomeStatus === 'service_unavailable' ? (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-500/40 space-y-2 text-xs font-mono">
+                  <div className="flex items-center gap-2 text-rose-300 font-bold">
+                    <Server className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span>BACKEND SERVICE OFFLINE</span>
+                  </div>
+                  <p className="text-rose-200/90 text-[11px]">
+                    {inferenceResult.statusExplanation}
+                  </p>
+                  <div className="pt-2 border-t border-rose-500/20 text-[10px] text-slate-400">
+                    Switch to the Local Vision Engine in the header to run genuine in-browser computer vision.
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleSwitchEngine('local')}
+                  className="w-full py-3 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold font-mono text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/20"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>SWITCH TO LOCAL VISION ENGINE</span>
+                </button>
+              </div>
             ) : (
+              /* Actionable Defects Detected */
               <div className="space-y-4">
                 {/* Detected Issues List */}
                 <div className="space-y-2">
@@ -526,51 +736,55 @@ export const AnalyzeView: React.FC = () => {
                   ))}
                 </div>
 
-                {/* Priority Explainability Breakdown (Rule 9) */}
-                <div className="p-3.5 rounded-xl bg-[#0F172A]/80 border border-cyan-500/30 space-y-2 text-xs font-mono">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase text-cyan-400 font-bold flex items-center gap-1.5">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      Priority Ranking Explainability
-                    </span>
-                    <span className="text-cyan-400 font-bold">
-                      {inferenceResult.priorityExplainability.score} / 100
-                    </span>
-                  </div>
+                {/* Priority Explainability Breakdown */}
+                {inferenceResult.priorityExplainability && (
+                  <div className="p-3.5 rounded-xl bg-[#0F172A]/80 border border-cyan-500/30 space-y-2 text-xs font-mono">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase text-cyan-400 font-bold flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        Priority Ranking Explainability
+                      </span>
+                      <span className="text-cyan-400 font-bold">
+                        {inferenceResult.priorityExplainability.score} / 100
+                      </span>
+                    </div>
 
-                  <ul className="space-y-1 text-[11px] pl-1">
-                    {inferenceResult.priorityExplainability.reasons.map((reason, i) => (
-                      <li key={i} className="text-slate-300 flex items-start gap-1.5">
-                        <span className="text-cyan-400 font-bold">•</span>
-                        <span>{reason}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                    <ul className="space-y-1 text-[11px] pl-1">
+                      {inferenceResult.priorityExplainability.reasons.map((reason, i) => (
+                        <li key={i} className="text-slate-300 flex items-start gap-1.5">
+                          <span className="text-cyan-400 font-bold">•</span>
+                          <span>{reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 {/* Commuter Exposure & Sensitive Assets */}
-                <div className="p-3.5 rounded-xl bg-[#0B101D] border border-slate-800 space-y-2 text-xs font-mono">
-                  <div className="text-[10px] uppercase text-slate-400 font-bold">
-                    Commuter & Urban Impact
+                {inferenceResult.impact && (
+                  <div className="p-3.5 rounded-xl bg-[#0B101D] border border-slate-800 space-y-2 text-xs font-mono">
+                    <div className="text-[10px] uppercase text-slate-400 font-bold">
+                      Commuter & Urban Impact
+                    </div>
+                    <div className="flex items-center justify-between text-slate-300">
+                      <span>Daily Commuters:</span>
+                      <span className="font-bold text-white">~{inferenceResult.impact.affectedUsersPerDay.toLocaleString()} / day</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-300">
+                      <span>Traffic Corridor:</span>
+                      <span className="font-bold text-amber-400 uppercase">{inferenceResult.impact.trafficImportance}</span>
+                    </div>
+                    <div className="pt-1.5 border-t border-slate-800 space-y-1 text-[11px]">
+                      <div className="text-[10px] text-slate-500">PROXIMATE ASSETS:</div>
+                      {inferenceResult.impact.nearbyRisks.map((risk, i) => (
+                        <div key={i} className="flex justify-between text-slate-300">
+                          <span>{risk.name}</span>
+                          <span className="text-rose-400 font-bold">{risk.distanceMeters}m</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-slate-300">
-                    <span>Daily Commuters:</span>
-                    <span className="font-bold text-white">~{inferenceResult.impact.affectedUsersPerDay.toLocaleString()} / day</span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-300">
-                    <span>Traffic Corridor:</span>
-                    <span className="font-bold text-amber-400 uppercase">{inferenceResult.impact.trafficImportance}</span>
-                  </div>
-                  <div className="pt-1.5 border-t border-slate-800 space-y-1 text-[11px]">
-                    <div className="text-[10px] text-slate-500">PROXIMATE ASSETS:</div>
-                    {inferenceResult.impact.nearbyRisks.map((risk, i) => (
-                      <div key={i} className="flex justify-between text-slate-300">
-                        <span>{risk.name}</span>
-                        <span className="text-rose-400 font-bold">{risk.distanceMeters}m</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                )}
 
                 {/* Authority Routing Banner */}
                 <div className="p-3.5 rounded-xl bg-[#0E1524] border border-slate-800 flex items-center justify-between">
@@ -582,16 +796,16 @@ export const AnalyzeView: React.FC = () => {
                       {inferenceResult.departmentName}
                     </div>
                     <div className="text-[10px] text-amber-400 font-mono mt-0.5">
-                      Target SLA: Within {inferenceResult.impact.slaDeadlineHours} hours
+                      Target SLA: Within {inferenceResult.impact?.slaDeadlineHours || 24} hours
                     </div>
                   </div>
                   <Building2 className="w-5 h-5 text-cyan-400" />
                 </div>
 
-                {/* Dispatch Button */}
+                {/* Dispatch Button (Only enabled when actionable defect exists) */}
                 <button
                   onClick={handleDispatchToCommandCenter}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !inferenceResult.isActionable}
                   className="w-full py-3 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-mono text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 active:scale-95 disabled:opacity-50"
                 >
                   <Send className="w-4 h-4" />

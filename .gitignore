@@ -33,3 +33,5 @@ dist-ssr
 .eslintcache
 .cache
 *.tsbuildinfo
+*.bundle.cjs
+.venv

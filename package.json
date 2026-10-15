@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "esbuild tests/accuracyEvaluation.test.ts --bundle --platform=node --outfile=tests/accuracyEvaluation.bundle.cjs && node --test tests/accuracyEvaluation.bundle.cjs",
+    "eval": "esbuild scripts/evaluate-accuracy.ts --bundle --platform=node --outfile=scripts/evaluate-accuracy.bundle.cjs && node scripts/evaluate-accuracy.bundle.cjs",
+    "server": "esbuild server/index.ts --bundle --platform=node --outfile=server/server.bundle.cjs && node server/server.bundle.cjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
