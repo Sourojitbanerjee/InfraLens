@@ -93,7 +93,7 @@ export const AnalyzeView: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = (event: ProgressEvent<FileReader>) => {
         const dataUrl = event.target?.result as string;
         setActivePresetId('');
         startAnalysis(dataUrl);
@@ -107,7 +107,7 @@ export const AnalyzeView: React.FC = () => {
     const file = e.dataTransfer.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = (event: ProgressEvent<FileReader>) => {
         const dataUrl = event.target?.result as string;
         setActivePresetId('');
         startAnalysis(dataUrl);
@@ -778,23 +778,27 @@ export const AnalyzeView: React.FC = () => {
                   <div className="text-[10px] font-mono uppercase text-slate-400 font-bold">
                     Classified Detections ({inferenceResult.detections.length})
                   </div>
-                  {inferenceResult.detections.map((det) => (
-                    <div
-                      key={det.id}
-                      className="p-3 rounded-xl bg-[#0E1524] border border-slate-800 space-y-1.5"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs text-slate-100 font-mono">
-                          {det.label.split('(')[0].trim()}
-                        </span>
-                        <SeverityIndicator severity={det.severity} size="sm" />
+                  {inferenceResult.detections.map((det) => {
+                    const matchedDetection = inferenceResult.structuredDetections?.find((d) => d.id === det.id);
+                    const itemSeverity = det.severityScore ?? matchedDetection?.severityScore ?? inferenceResult.severityScore;
+                    return (
+                      <div
+                        key={det.id}
+                        className="p-3 rounded-xl bg-[#0E1524] border border-slate-800 space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs text-slate-100 font-mono">
+                            {det.label.split('(')[0].trim()}
+                          </span>
+                          <SeverityIndicator severity={det.severity} size="sm" />
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                          <span>Confidence: <strong className="text-cyan-400">{det.confidence}%</strong></span>
+                          <span>Severity: <strong className="text-rose-400">{itemSeverity}/100</strong></span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                        <span>Confidence: <strong className="text-cyan-400">{det.confidence}%</strong></span>
-                        <span>Severity: <strong className="text-rose-400">{(det.severityScore ?? inferenceResult.severityScore)}/100</strong></span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Crop-Level Visual Evidence Audit */}
@@ -817,7 +821,7 @@ export const AnalyzeView: React.FC = () => {
                     </div>
 
                     <div className="space-y-1.5 text-[11px] pt-0.5">
-                      {inferenceResult.cropVerifications[0].supportingEvidence.map((ev, i) => (
+                      {inferenceResult.cropVerifications[0].supportingEvidence.map((ev: string, i: number) => (
                         <div key={i} className="flex items-start gap-1.5 text-slate-200">
                           <span className="text-emerald-400 font-bold">✓</span>
                           <span>{ev}</span>

@@ -3,16 +3,18 @@ import { SAMPLE_STREET_IMAGES } from '../data/sampleStreetImages';
 import { ImageDecoder } from './cv/imageDecoder';
 import { ImageValidationPipeline } from './cv/imageValidationPipeline';
 import { InfrastructureCvEngine } from './cv/infrastructureCvEngine';
-import { ImageValidationResult } from './cv/types';
+import { ImageValidationResult, OperationalDecisionState, CropVerificationResult } from './cv/types';
 import { SeverityEngine } from './severityEngine';
 
 export interface DetectionServiceResult {
   detections: Detection[];
   validation: ImageValidationResult;
+  operationalState: OperationalDecisionState;
   modelEngineName: string;
   isSimulated: boolean;
   isServiceUnavailable?: boolean;
   errorMessage?: string;
+  cropVerifications?: CropVerificationResult[];
 }
 
 export interface IDetectionService {
@@ -93,6 +95,8 @@ export class LocalCvDetectionService implements IDetectionService {
         detections,
         validation: {
           isValid: true,
+          operationalState: detections.length > 0 ? 'DAMAGE_VERIFIED' : 'NO_DAMAGE_DETECTED',
+          scenePresence: 'infrastructure_present',
           status: 'valid_infrastructure',
           sceneType: 'road_asphalt',
           metrics: {
@@ -108,6 +112,7 @@ export class LocalCvDetectionService implements IDetectionService {
           },
           sceneConfidence: 96.0,
         },
+        operationalState: detections.length > 0 ? 'DAMAGE_VERIFIED' : 'NO_DAMAGE_DETECTED',
         modelEngineName: this.name,
         isSimulated: false,
       };
@@ -122,6 +127,8 @@ export class LocalCvDetectionService implements IDetectionService {
         detections: [],
         validation: {
           isValid: false,
+          operationalState: 'IMAGE_QUALITY_INSUFFICIENT',
+          scenePresence: 'image_unsuitable',
           status: 'rejected',
           sceneType: 'blank',
           rejectionReason: 'corrupt_or_invalid_format',
@@ -139,6 +146,7 @@ export class LocalCvDetectionService implements IDetectionService {
           },
           sceneConfidence: 0,
         },
+        operationalState: 'IMAGE_QUALITY_INSUFFICIENT',
         modelEngineName: this.name,
         isSimulated: false,
       };
@@ -153,13 +161,14 @@ export class LocalCvDetectionService implements IDetectionService {
       return {
         detections: [],
         validation,
+        operationalState: validation.operationalState,
         modelEngineName: this.name,
         isSimulated: false,
       };
     }
 
     // 4. Stage B: Run Genuine Computer Vision Defect Detection
-    const rawDetections = InfrastructureCvEngine.detectDefects(buffer);
+    const rawDetections = InfrastructureCvEngine.detectDefects(buffer, validation.sceneType);
 
     // 5. Convert to Structured Detections with Evidence-Based Severity
     const detections: Detection[] = rawDetections.map((det, idx) => {
@@ -188,9 +197,21 @@ export class LocalCvDetectionService implements IDetectionService {
       };
     });
 
+    const cropVerifications = rawDetections
+      .map((d) => d.evidence.cropVerification)
+      .filter(Boolean) as CropVerificationResult[];
+
+    let operationalState: OperationalDecisionState = 'NO_DAMAGE_DETECTED';
+    if (detections.length > 0) {
+      const hasHighConfidence = detections.some((d) => d.confidence >= 65);
+      operationalState = hasHighConfidence ? 'DAMAGE_VERIFIED' : 'UNCERTAIN';
+    }
+
     return {
       detections,
       validation,
+      operationalState,
+      cropVerifications,
       modelEngineName: this.name,
       isSimulated: false,
     };
@@ -232,27 +253,39 @@ export class RealDetectionService implements IDetectionService {
 
       const data = await response.json();
 
-      return {
-        detections: data.detections || [],
-        validation: data.validation || {
-          isValid: data.status !== 'rejected',
-          status: data.status === 'rejected' ? 'rejected' : 'valid_infrastructure',
-          sceneType: data.sceneType || 'road_asphalt',
-          rejectionReason: data.rejectionReason,
-          rejectionMessage: data.message,
-          metrics: data.metrics || {
-            meanLuminance: 120,
-            rmsContrast: 30,
-            dynamicRange: 150,
-            edgeEnergy: 5,
-            colorEntropy: 4,
-            saturationMean: 0.1,
-            isUniform: false,
-            isGrayscaleOrNeutral: true,
-            aspectRatio: 1.5,
-          },
-          sceneConfidence: 90,
+      const validation: ImageValidationResult = data.validation || {
+        isValid: data.status !== 'rejected',
+        operationalState: data.operationalState || (data.status === 'rejected' ? 'IMAGE_QUALITY_INSUFFICIENT' : 'NO_DAMAGE_DETECTED'),
+        scenePresence: data.status === 'rejected' ? 'image_unsuitable' : 'infrastructure_present',
+        status: data.status === 'rejected' ? 'rejected' : 'valid_infrastructure',
+        sceneType: data.sceneType || 'road_asphalt',
+        rejectionReason: data.rejectionReason,
+        rejectionMessage: data.message,
+        metrics: data.metrics || {
+          meanLuminance: 120,
+          rmsContrast: 30,
+          dynamicRange: 150,
+          edgeEnergy: 5,
+          colorEntropy: 4,
+          saturationMean: 0.1,
+          isUniform: false,
+          isGrayscaleOrNeutral: true,
+          aspectRatio: 1.5,
         },
+        sceneConfidence: 90,
+      };
+
+      const dets = data.detections || [];
+      const operationalState: OperationalDecisionState = data.operationalState || (
+        !validation.isValid ? validation.operationalState :
+        dets.length > 0 ? 'DAMAGE_VERIFIED' : 'NO_DAMAGE_DETECTED'
+      );
+
+      return {
+        detections: dets,
+        validation,
+        operationalState,
+        cropVerifications: data.cropVerifications,
         modelEngineName: data.modelName || this.name,
         isSimulated: false,
       };
@@ -265,8 +298,12 @@ export class RealDetectionService implements IDetectionService {
         detections: [],
         validation: {
           isValid: false,
+          operationalState: 'ANALYSIS_FAILED',
+          scenePresence: 'image_unsuitable',
           status: 'rejected',
           sceneType: 'ambiguous',
+          rejectionReason: 'corrupt_or_invalid_format',
+          rejectionMessage: 'Inference backend service is currently unreachable.',
           metrics: {
             meanLuminance: 0,
             rmsContrast: 0,
@@ -280,6 +317,7 @@ export class RealDetectionService implements IDetectionService {
           },
           sceneConfidence: 0,
         },
+        operationalState: 'ANALYSIS_FAILED',
         modelEngineName: this.name,
         isSimulated: false,
         isServiceUnavailable: true,

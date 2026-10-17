@@ -7,6 +7,28 @@ export interface ImagePixelBuffer {
   data: Uint8ClampedArray | Uint8Array;
 }
 
+/**
+ * Operational Decision States (Phase 4 Required States)
+ * Enforces strict decision policies with zero manufactured positive outcomes.
+ */
+export type OperationalDecisionState =
+  | 'DAMAGE_VERIFIED'             // Supported defect passed strict multi-stage verification
+  | 'NO_DAMAGE_DETECTED'           // Suitable infrastructure scene, no actionable defect
+  | 'UNCERTAIN'                    // Evidence present but ambiguous or partially obscured
+  | 'UNSUPPORTED_IMAGE'            // Non-infrastructure, indoor, animals, food, documents
+  | 'IMAGE_QUALITY_INSUFFICIENT'   // Severe blur, pitch black, overexposed, corrupt
+  | 'ANALYSIS_FAILED';             // Engine/Backend failure or unreachable network
+
+/**
+ * Scene Taxonomy separating infrastructure presence from defects (Phase 2 Stage B)
+ */
+export type ScenePresenceStatus =
+  | 'infrastructure_present'
+  | 'infrastructure_absent'
+  | 'infrastructure_uncertain'
+  | 'infrastructure_present_with_potential_defect'
+  | 'image_unsuitable';
+
 export type ImageRejectionReason =
   | 'blank_white'
   | 'blank_black'
@@ -42,6 +64,8 @@ export interface ImageValidationMetrics {
 
 export interface ImageValidationResult {
   isValid: boolean;
+  operationalState: OperationalDecisionState;
+  scenePresence: ScenePresenceStatus;
   status: 'valid_infrastructure' | 'valid_non_defect' | 'rejected' | 'ambiguous';
   sceneType: SceneClassification;
   rejectionReason?: ImageRejectionReason;
@@ -50,9 +74,36 @@ export interface ImageValidationResult {
   sceneConfidence: number;      // 0 - 100%
 }
 
+/**
+ * Multi-Stage Crop Verification Schema (Phase 3)
+ * Evaluates candidate defect crops for supporting vs. contradictory evidence
+ * (e.g. manhole covers, asphalt patches, shadows, painted stripes)
+ */
+export interface CropVerificationResult {
+  isValidCrop: boolean;
+  supportsPositiveFinding: boolean;
+  isUncertain: boolean;
+  supportingEvidence: string[];
+  contradictoryEvidence: string[];
+  isManholeCover: boolean;
+  isRoadRepairPatch: boolean;
+  isSurfaceShadow: boolean;
+  isPaintedMarking: boolean;
+  isWetSurfaceReflection: boolean;
+  isVehicleSuperstructure: boolean;
+  isVehicleWheel: boolean;
+  isVehicleWindowOrSeam: boolean;
+  isVehicleGrille: boolean;
+  isOnPlausibleRoadSurface: boolean;
+  roadSurfaceConfidence: number; // 0 - 100%
+  cropCalibratedConfidence: number; // 0 - 100
+  evidenceExplanation: string;
+}
+
 export interface DefectEvidence {
   rawScore: number;            // 0 - 1
   calibratedConfidence: number;// 0 - 100%
+  roadSurfaceConfidence?: number; // 0 - 100%
   areaPixels: number;
   frameCoveragePct: number;    // % of image area
   contrastDelta: number;       // difference in luminance from background
@@ -70,6 +121,7 @@ export interface DefectEvidence {
     maxX: number;
     maxY: number;
   };
+  cropVerification?: CropVerificationResult;
 }
 
 export interface RawDefectDetection {
@@ -89,6 +141,9 @@ export interface ModelCapability {
   knownLimitations: string;
 }
 
+/**
+ * Backward-compatible alias for AnalysisOutcomeStatus mapped to OperationalDecisionState
+ */
 export type AnalysisOutcomeStatus =
   | 'in_progress'
   | 'defects_detected'

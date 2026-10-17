@@ -52,6 +52,7 @@ export interface BoundingBox {
   category: InfrastructureCategory;
   confidence: number; // percentage [0, 100]
   severity: Severity;
+  severityScore?: number; // 0 - 100
   metadata?: DetectionMetadata;
 }
 
