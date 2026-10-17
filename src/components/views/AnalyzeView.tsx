@@ -286,13 +286,17 @@ export const AnalyzeView: React.FC = () => {
                 <span
                   className={`font-bold uppercase ${
                     stage === 'completed'
-                      ? inferenceResult?.outcomeStatus === 'image_rejected'
-                        ? 'text-amber-400'
-                        : inferenceResult?.outcomeStatus === 'nominal_infrastructure'
+                      ? inferenceResult?.operationalState === 'DAMAGE_VERIFIED'
+                        ? 'text-cyan-400'
+                        : inferenceResult?.operationalState === 'NO_DAMAGE_DETECTED'
                         ? 'text-emerald-400'
-                        : inferenceResult?.outcomeStatus === 'service_unavailable'
+                        : inferenceResult?.operationalState === 'UNCERTAIN'
+                        ? 'text-amber-400'
+                        : inferenceResult?.operationalState === 'UNSUPPORTED_IMAGE'
+                        ? 'text-orange-400'
+                        : inferenceResult?.operationalState === 'IMAGE_QUALITY_INSUFFICIENT'
                         ? 'text-rose-400'
-                        : 'text-cyan-400'
+                        : 'text-rose-400'
                       : stage === 'scanning'
                       ? 'text-cyan-400 animate-pulse'
                       : 'text-amber-400'
@@ -318,12 +322,18 @@ export const AnalyzeView: React.FC = () => {
                     ? '8. PRIORITY GENERATED'
                     : stage === 'error'
                     ? 'INGEST FAILED'
-                    : inferenceResult?.outcomeStatus === 'image_rejected'
-                    ? 'IMAGE REJECTED'
-                    : inferenceResult?.outcomeStatus === 'nominal_infrastructure'
-                    ? 'NOMINAL INFRASTRUCTURE'
-                    : inferenceResult?.outcomeStatus === 'service_unavailable'
-                    ? 'BACKEND OFFLINE'
+                    : inferenceResult?.operationalState === 'DAMAGE_VERIFIED'
+                    ? 'DAMAGE VERIFIED'
+                    : inferenceResult?.operationalState === 'NO_DAMAGE_DETECTED'
+                    ? 'NO DAMAGE DETECTED'
+                    : inferenceResult?.operationalState === 'UNCERTAIN'
+                    ? 'UNCERTAIN INSPECTION'
+                    : inferenceResult?.operationalState === 'UNSUPPORTED_IMAGE'
+                    ? 'UNSUPPORTED IMAGE'
+                    : inferenceResult?.operationalState === 'IMAGE_QUALITY_INSUFFICIENT'
+                    ? 'QUALITY INSUFFICIENT'
+                    : inferenceResult?.operationalState === 'ANALYSIS_FAILED'
+                    ? 'ANALYSIS FAILED'
                     : 'PIPELINE COMPLETE'}
                 </span>
               </div>
@@ -606,21 +616,23 @@ export const AnalyzeView: React.FC = () => {
                 <Scan className="w-4 h-4 text-cyan-400" />
                 AI Inference Telemetry
               </h2>
-              {inferenceResult && inferenceResult.priorityExplainability ? (
+              {inferenceResult && (
                 <span
-                  className={`text-[11px] font-mono font-extrabold px-2 py-0.5 rounded ${
-                    inferenceResult.priorityExplainability.priority === 'P0'
-                      ? 'bg-purple-950 text-rose-300 border border-rose-500 animate-pulse'
+                  className={`text-[10px] font-mono font-extrabold px-2 py-0.5 rounded uppercase ${
+                    inferenceResult.operationalState === 'DAMAGE_VERIFIED'
+                      ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/50'
+                      : inferenceResult.operationalState === 'NO_DAMAGE_DETECTED'
+                      ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+                      : inferenceResult.operationalState === 'UNCERTAIN'
+                      ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                      : inferenceResult.operationalState === 'UNSUPPORTED_IMAGE'
+                      ? 'bg-orange-950 text-orange-300 border border-orange-500/40'
                       : 'bg-rose-950 text-rose-300 border border-rose-500/40'
                   }`}
                 >
-                  {inferenceResult.priorityExplainability.priority} {inferenceResult.priorityExplainability.priorityLabel}
+                  {inferenceResult.operationalState.replace(/_/g, ' ')}
                 </span>
-              ) : inferenceResult?.outcomeStatus === 'nominal_infrastructure' ? (
-                <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">
-                  NOMINAL (P4)
-                </span>
-              ) : null}
+              )}
             </div>
 
             {!inferenceResult ? (
@@ -630,12 +642,16 @@ export const AnalyzeView: React.FC = () => {
                 </div>
                 <div>Awaiting neural analysis completion...</div>
               </div>
-            ) : inferenceResult.outcomeStatus === 'image_rejected' ? (
+            ) : inferenceResult.operationalState === 'UNSUPPORTED_IMAGE' || inferenceResult.operationalState === 'IMAGE_QUALITY_INSUFFICIENT' ? (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 space-y-2 text-xs font-mono">
                   <div className="flex items-center gap-2 text-amber-300 font-bold">
                     <XCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span>IMAGE INTEGRITY VIOLATION</span>
+                    <span>
+                      {inferenceResult.operationalState === 'UNSUPPORTED_IMAGE'
+                        ? 'UNSUPPORTED IMAGE REJECTED'
+                        : 'IMAGE QUALITY INSUFFICIENT'}
+                    </span>
                   </div>
                   <p className="text-amber-200/90 text-[11px]">
                     {inferenceResult.statusExplanation}
@@ -655,7 +671,7 @@ export const AnalyzeView: React.FC = () => {
                   <span>DISPATCH DISABLED (IMAGE REJECTED)</span>
                 </button>
               </div>
-            ) : inferenceResult.outcomeStatus === 'nominal_infrastructure' ? (
+            ) : inferenceResult.operationalState === 'NO_DAMAGE_DETECTED' ? (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 space-y-2 text-xs font-mono">
                   <div className="flex items-center gap-2 text-emerald-300 font-bold">
@@ -686,7 +702,7 @@ export const AnalyzeView: React.FC = () => {
                   <span>NO DISPATCH REQUIRED (SURFACE NOMINAL)</span>
                 </button>
               </div>
-            ) : inferenceResult.outcomeStatus === 'service_unavailable' ? (
+            ) : inferenceResult.operationalState === 'ANALYSIS_FAILED' ? (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-500/40 space-y-2 text-xs font-mono">
                   <div className="flex items-center gap-2 text-rose-300 font-bold">
@@ -707,6 +723,51 @@ export const AnalyzeView: React.FC = () => {
                 >
                   <RotateCcw className="w-4 h-4" />
                   <span>SWITCH TO LOCAL VISION ENGINE</span>
+                </button>
+              </div>
+            ) : inferenceResult.operationalState === 'UNCERTAIN' ? (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 space-y-2 text-xs font-mono">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold">
+                    <HelpCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>UNCERTAIN INSPECTION (MANUAL AUDIT REQUIRED)</span>
+                  </div>
+                  <p className="text-amber-200/90 text-[11px]">
+                    {inferenceResult.statusExplanation}
+                  </p>
+                  <div className="pt-2 border-t border-amber-500/20 text-[10px] text-slate-300 space-y-1">
+                    <div>• Candidate anomaly detected below calibrated confidence threshold.</div>
+                    <div>• Automated dispatch suppressed to prevent false positive municipal work orders.</div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-[10px] font-mono uppercase text-slate-400 font-bold">
+                    Borderline Detections ({inferenceResult.detections.length})
+                  </div>
+                  {inferenceResult.detections.map((det) => (
+                    <div
+                      key={det.id}
+                      className="p-3 rounded-xl bg-[#0E1524] border border-amber-500/30 space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-slate-200 font-mono">
+                          {det.label}
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/40">
+                          {det.confidence}% CONF
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  disabled
+                  className="w-full py-3 px-4 rounded-xl bg-slate-900 border border-slate-800 text-slate-500 font-bold font-mono text-xs cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <HelpCircle className="w-4 h-4 text-slate-600" />
+                  <span>DISPATCH DISABLED (UNCERTAIN INSPECTION)</span>
                 </button>
               </div>
             ) : (
@@ -730,11 +791,79 @@ export const AnalyzeView: React.FC = () => {
                       </div>
                       <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
                         <span>Confidence: <strong className="text-cyan-400">{det.confidence}%</strong></span>
-                        <span>Severity: <strong className="text-rose-400">{inferenceResult.severityScore}/100</strong></span>
+                        <span>Severity: <strong className="text-rose-400">{(det.severityScore ?? inferenceResult.severityScore)}/100</strong></span>
                       </div>
                     </div>
                   ))}
                 </div>
+
+                {/* Crop-Level Visual Evidence Audit */}
+                {inferenceResult.cropVerifications && inferenceResult.cropVerifications.length > 0 && (
+                  <div className="p-3.5 rounded-xl bg-[#091122] border border-cyan-500/40 space-y-2 text-xs font-mono">
+                    <div className="flex items-center justify-between pb-1 border-b border-cyan-500/20">
+                      <span className="text-[10px] uppercase text-cyan-300 font-bold flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                        Crop Evidence & Discriminator Audit
+                      </span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                        inferenceResult.operationalState === 'DAMAGE_VERIFIED'
+                          ? 'text-emerald-400 bg-emerald-950 border-emerald-500/30'
+                          : inferenceResult.operationalState === 'UNCERTAIN'
+                          ? 'text-amber-400 bg-amber-950 border-amber-500/30'
+                          : 'text-cyan-400 bg-cyan-950 border-cyan-500/30'
+                      }`}>
+                        {inferenceResult.operationalState === 'DAMAGE_VERIFIED' ? 'VERIFIED' : inferenceResult.operationalState === 'UNCERTAIN' ? 'UNCERTAIN' : 'NOMINAL'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-[11px] pt-0.5">
+                      {inferenceResult.cropVerifications[0].supportingEvidence.map((ev, i) => (
+                        <div key={i} className="flex items-start gap-1.5 text-slate-200">
+                          <span className="text-emerald-400 font-bold">✓</span>
+                          <span>{ev}</span>
+                        </div>
+                      ))}
+                      <div className="pt-2 border-t border-slate-800/80 grid grid-cols-2 gap-1.5 text-[10px] text-slate-400">
+                        <div className="flex items-center gap-1">
+                          <span className={!inferenceResult.cropVerifications[0].isManholeCover ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                            {!inferenceResult.cropVerifications[0].isManholeCover ? '✓' : '✗'}
+                          </span>
+                          <span>Manhole filter passed</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className={!inferenceResult.cropVerifications[0].isRoadRepairPatch ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                            {!inferenceResult.cropVerifications[0].isRoadRepairPatch ? '✓' : '✗'}
+                          </span>
+                          <span>Bitumen patch check passed</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className={!inferenceResult.cropVerifications[0].isSurfaceShadow ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                            {!inferenceResult.cropVerifications[0].isSurfaceShadow ? '✓' : '✗'}
+                          </span>
+                          <span>Shadow check passed</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className={!inferenceResult.cropVerifications[0].isPaintedMarking ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                            {!inferenceResult.cropVerifications[0].isPaintedMarking ? '✓' : '✗'}
+                          </span>
+                          <span>Lane marking check passed</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className={!inferenceResult.cropVerifications[0].isVehicleSuperstructure ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                            {!inferenceResult.cropVerifications[0].isVehicleSuperstructure ? '✓' : '✗'}
+                          </span>
+                          <span>Vehicle body check passed</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className={!inferenceResult.cropVerifications[0].isVehicleWheel ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                            {!inferenceResult.cropVerifications[0].isVehicleWheel ? '✓' : '✗'}
+                          </span>
+                          <span>Wheel/chassis check passed</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Priority Explainability Breakdown */}
                 {inferenceResult.priorityExplainability && (
@@ -802,10 +931,10 @@ export const AnalyzeView: React.FC = () => {
                   <Building2 className="w-5 h-5 text-cyan-400" />
                 </div>
 
-                {/* Dispatch Button (Only enabled when actionable defect exists) */}
+                {/* Dispatch Button (Only enabled when actionable defect exists and is verified) */}
                 <button
                   onClick={handleDispatchToCommandCenter}
-                  disabled={isSubmitting || !inferenceResult.isActionable}
+                  disabled={isSubmitting || !inferenceResult.isActionable || inferenceResult.operationalState !== 'DAMAGE_VERIFIED'}
                   className="w-full py-3 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-mono text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 active:scale-95 disabled:opacity-50"
                 >
                   <Send className="w-4 h-4" />

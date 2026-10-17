@@ -5,6 +5,7 @@ import { DetectionClass } from '../src/types/infrastructure';
 
 interface EvaluationResultItem {
   scenarioId: number;
+  group: string;
   scenarioName: string;
   expectedStatus: string;
   actualStatus: string;
@@ -22,7 +23,7 @@ interface EvaluationResultItem {
 
 export function runAccuracyEvaluation() {
   console.log('================================================================================');
-  console.log('          INFRALENS RIGOROUS COMPUTER VISION ACCURACY EVALUATION SUITE          ');
+  console.log('       INFRALENS RIGOROUS 37-SCENARIO ACCURACY & RELIABILITY EVALUATION         ');
   console.log('================================================================================\n');
 
   const results: EvaluationResultItem[] = [];
@@ -34,6 +35,12 @@ export function runAccuracyEvaluation() {
   let blankTotal = 0;
   let blankCorrectlyRejected = 0;
   let totalLatency = 0;
+
+  const groupStats: Record<string, { total: number; correct: number }> = {
+    negative: { total: 0, correct: 0 },
+    positive: { total: 0, correct: 0 },
+    difficult: { total: 0, correct: 0 },
+  };
 
   const perClassStats: Record<string, { tp: number; fp: number; fn: number }> = {
     pothole: { tp: 0, fp: 0, fn: 0 },
@@ -54,7 +61,7 @@ export function runAccuracyEvaluation() {
     let confidences: number[] = [];
 
     if (validation.isValid) {
-      const rawDetections = InfrastructureCvEngine.detectDefects(buffer);
+      const rawDetections = InfrastructureCvEngine.detectDefects(buffer, validation.sceneType);
       detectedClasses = rawDetections.map((d) => d.type);
       confidences = rawDetections.map((d) => d.evidence.calibratedConfidence);
     }
@@ -65,11 +72,15 @@ export function runAccuracyEvaluation() {
     // Check status match
     const statusMatch =
       validation.status === scenario.expectedStatus ||
-      (scenario.expectedStatus === 'rejected' && !validation.isValid);
+      (scenario.expectedStatus === 'rejected' && !validation.isValid) ||
+      (scenario.expectedStatus === 'ambiguous' && validation.status === 'ambiguous');
 
     // Track blank/irrelevant rejection
     const isBlankOrIrrelevant =
-      scenario.id === 1 || scenario.id === 2 || scenario.id === 3 || scenario.id === 4 || scenario.id === 5;
+      scenario.id === 1 || scenario.id === 2 || scenario.id === 3 || scenario.id === 4 ||
+      scenario.id === 8 || scenario.id === 14 || scenario.id === 15 || scenario.id === 16 ||
+      scenario.id === 17 || scenario.id === 18;
+
     if (isBlankOrIrrelevant) {
       blankTotal++;
       if (!validation.isValid && detectedClasses.length === 0) {
@@ -103,6 +114,12 @@ export function runAccuracyEvaluation() {
       }
     }
 
+    // Group accounting
+    if (groupStats[scenario.group]) {
+      groupStats[scenario.group].total++;
+      if (isCorrect) groupStats[scenario.group].correct++;
+    }
+
     // Per-class accounting
     for (const expClass of scenario.expectedDefects) {
       if (!perClassStats[expClass]) perClassStats[expClass] = { tp: 0, fp: 0, fn: 0 };
@@ -121,6 +138,7 @@ export function runAccuracyEvaluation() {
 
     results.push({
       scenarioId: scenario.id,
+      group: scenario.group,
       scenarioName: scenario.name,
       expectedStatus: scenario.expectedStatus,
       actualStatus: validation.status,
@@ -149,14 +167,14 @@ export function runAccuracyEvaluation() {
   const blankRejectionRate = (blankCorrectlyRejected / blankTotal) * 100;
 
   // Print Scenario Results Table
-  console.log('| ID | Scenario | Expected | Result Status | Detections | Match | Latency |');
-  console.log('|---|---------------------------------------------|----------------|---------------|------------|-------|---------|');
+  console.log('| ID | Group     | Scenario                                    | Expected       | Result Status  | Detections   | Match  | Latency |');
+  console.log('|---|-----------|---------------------------------------------|----------------|----------------|--------------|--------|---------|');
   for (const r of results) {
     const matchIcon = r.isCorrect ? '✅ PASS' : '❌ FAIL';
     const detStr = r.actualDefects.length > 0 ? r.actualDefects.join(', ') : '0 defects';
     const expStr = r.expectedDefects.length > 0 ? r.expectedDefects.join(', ') : '0 defects';
     console.log(
-      `| ${String(r.scenarioId).padStart(2)} | ${r.scenarioName.padEnd(43)} | ${expStr.padEnd(14)} | ${r.actualStatus.padEnd(13)} | ${detStr.padEnd(10)} | ${matchIcon} | ${r.latencyMs}ms |`
+      `| ${String(r.scenarioId).padStart(2)} | ${r.group.padEnd(9)} | ${r.scenarioName.padEnd(43)} | ${expStr.padEnd(14)} | ${r.actualStatus.padEnd(14)} | ${detStr.padEnd(12)} | ${matchIcon} | ${r.latencyMs}ms |`
     );
   }
 
@@ -175,8 +193,14 @@ export function runAccuracyEvaluation() {
   console.log(`• F1-Score                        : ${(f1Score * 100).toFixed(1)}%`);
   console.log(`• False Positive Rate (FPR)       : ${(fpr * 100).toFixed(1)}%`);
   console.log(`• False Negative Rate (FNR)       : ${(fnr * 100).toFixed(1)}%`);
-  console.log(`• Blank Image Rejection Rate      : ${blankRejectionRate.toFixed(1)}% (Target: 100%)`);
+  console.log(`• Blank & Irrelevant Rejection    : ${blankRejectionRate.toFixed(1)}% (Target: 100%)`);
   console.log(`• Average Inference Latency       : ${avgLatency.toFixed(2)} ms / frame`);
+  console.log('--------------------------------------------------------------------------------');
+  console.log('Performance by Scenario Category:');
+  for (const [grp, stats] of Object.entries(groupStats)) {
+    const pct = (stats.correct / stats.total) * 100;
+    console.log(`  - ${grp.toUpperCase().padEnd(12)}: ${stats.correct} / ${stats.total} (${pct.toFixed(1)}%)`);
+  }
   console.log('--------------------------------------------------------------------------------');
   console.log('Confusion Matrix:');
   console.log(`               Actual Negative   Actual Positive`);
