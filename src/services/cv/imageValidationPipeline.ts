@@ -16,6 +16,8 @@ export class ImageValidationPipeline {
     if (width < 32 || height < 32) {
       return {
         isValid: false,
+        operationalState: 'IMAGE_QUALITY_INSUFFICIENT',
+        scenePresence: 'image_unsuitable',
         status: 'rejected',
         sceneType: 'blank',
         rejectionReason: 'dimension_out_of_bounds',
@@ -29,6 +31,8 @@ export class ImageValidationPipeline {
     if (aspectRatio > 20 || aspectRatio < 0.05) {
       return {
         isValid: false,
+        operationalState: 'IMAGE_QUALITY_INSUFFICIENT',
+        scenePresence: 'image_unsuitable',
         status: 'rejected',
         sceneType: 'ambiguous',
         rejectionReason: 'dimension_out_of_bounds',
@@ -42,10 +46,12 @@ export class ImageValidationPipeline {
     const metrics = this.computeMetrics(buffer);
 
     // 3. Blank & Extreme Uniformity Rejection
-    // A completely white page (e.g. meanLuminance > 240, RMS contrast < 14, edge energy < 2.0)
+    // A completely white page (e.g. meanLuminance > 240, RMS contrast < 14, edge energy < 2.5)
     if (metrics.meanLuminance > 238 && metrics.rmsContrast < 18 && metrics.edgeEnergy < 2.5) {
       return {
         isValid: false,
+        operationalState: 'IMAGE_QUALITY_INSUFFICIENT',
+        scenePresence: 'image_unsuitable',
         status: 'rejected',
         sceneType: 'blank',
         rejectionReason: 'blank_white',
@@ -59,6 +65,8 @@ export class ImageValidationPipeline {
     if (metrics.meanLuminance < 14 && metrics.rmsContrast < 12 && metrics.edgeEnergy < 2.0) {
       return {
         isValid: false,
+        operationalState: 'IMAGE_QUALITY_INSUFFICIENT',
+        scenePresence: 'image_unsuitable',
         status: 'rejected',
         sceneType: 'blank',
         rejectionReason: 'blank_black',
@@ -72,6 +80,8 @@ export class ImageValidationPipeline {
     if (metrics.rmsContrast < 3.5 && metrics.edgeEnergy < 1.0) {
       return {
         isValid: false,
+        operationalState: 'IMAGE_QUALITY_INSUFFICIENT',
+        scenePresence: 'image_unsuitable',
         status: 'rejected',
         sceneType: 'blank',
         rejectionReason: 'uniform_blank',
@@ -82,10 +92,11 @@ export class ImageValidationPipeline {
     }
 
     // High-key document or text screenshot detection
-    // Typical characteristics: very high background luminance (> 225), low color entropy, sharp isolated edges
     if (metrics.meanLuminance > 215 && metrics.saturationMean < 0.08 && metrics.rmsContrast < 45 && metrics.colorEntropy < 3.2) {
       return {
         isValid: false,
+        operationalState: 'UNSUPPORTED_IMAGE',
+        scenePresence: 'infrastructure_absent',
         status: 'rejected',
         sceneType: 'non_infrastructure',
         rejectionReason: 'document_or_screenshot',
@@ -99,6 +110,8 @@ export class ImageValidationPipeline {
     if (metrics.edgeEnergy < 1.8 && metrics.rmsContrast > 8 && metrics.dynamicRange > 30) {
       return {
         isValid: false,
+        operationalState: 'IMAGE_QUALITY_INSUFFICIENT',
+        scenePresence: 'infrastructure_uncertain',
         status: 'ambiguous',
         sceneType: 'ambiguous',
         rejectionReason: 'blurry_unusable',
@@ -114,6 +127,8 @@ export class ImageValidationPipeline {
     if (sceneAnalysis.sceneType === 'non_infrastructure') {
       return {
         isValid: false,
+        operationalState: 'UNSUPPORTED_IMAGE',
+        scenePresence: 'infrastructure_absent',
         status: 'rejected',
         sceneType: 'non_infrastructure',
         rejectionReason: 'non_infrastructure',
@@ -125,6 +140,8 @@ export class ImageValidationPipeline {
 
     return {
       isValid: true,
+      operationalState: 'NO_DAMAGE_DETECTED',
+      scenePresence: 'infrastructure_present',
       status: 'valid_infrastructure',
       sceneType: sceneAnalysis.sceneType,
       metrics,

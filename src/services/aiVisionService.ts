@@ -12,7 +12,12 @@ import { SeverityEngine } from './severityEngine';
 import { ImpactEngine } from './impactEngine';
 import { PriorityEngine } from './priorityEngine';
 import { AuthorityResolver } from './authorityResolver';
-import { AnalysisOutcomeStatus, ImageValidationResult } from './cv/types';
+import { 
+  AnalysisOutcomeStatus, 
+  ImageValidationResult, 
+  OperationalDecisionState, 
+  CropVerificationResult 
+} from './cv/types';
 
 export type AnalysisStage = 
   | 'idle' 
@@ -42,11 +47,13 @@ export interface AiInferenceResult {
   departmentName: string;
   modelEngineName: string;
 
-  // Evidence-based validation & outcome statuses (Phase 2 & Phase 6)
+  // Evidence-based validation & outcome statuses (Phase 2 & Phase 4 & Phase 6)
   outcomeStatus: AnalysisOutcomeStatus;
+  operationalState: OperationalDecisionState;
   validationResult: ImageValidationResult;
   isActionable: boolean;
   statusExplanation: string;
+  cropVerifications?: CropVerificationResult[];
 }
 
 export class AiVisionService {
@@ -90,9 +97,11 @@ export class AiVisionService {
         departmentName: 'Service Offline',
         modelEngineName: serviceResult.modelEngineName,
         outcomeStatus: 'service_unavailable',
+        operationalState: 'ANALYSIS_FAILED',
         validationResult: serviceResult.validation,
         isActionable: false,
         statusExplanation: serviceResult.errorMessage || 'Inference backend service is currently unreachable.',
+        cropVerifications: [],
       };
     }
 
@@ -116,9 +125,11 @@ export class AiVisionService {
         departmentName: 'Unassigned',
         modelEngineName: serviceResult.modelEngineName,
         outcomeStatus: 'image_rejected',
+        operationalState: serviceResult.operationalState || serviceResult.validation.operationalState,
         validationResult: serviceResult.validation,
         isActionable: false,
         statusExplanation: reasonMsg,
+        cropVerifications: [],
       };
     }
 
@@ -153,9 +164,11 @@ export class AiVisionService {
         departmentName: 'Public Works Surveillance (Nominal)',
         modelEngineName: serviceResult.modelEngineName,
         outcomeStatus: 'nominal_infrastructure',
+        operationalState: 'NO_DAMAGE_DETECTED',
         validationResult: serviceResult.validation,
         isActionable: false,
         statusExplanation: 'Nominal Surface: Visual inspection verified intact infrastructure with no actionable defects in this frame.',
+        cropVerifications: serviceResult.cropVerifications || [],
       };
     }
 
@@ -218,10 +231,13 @@ export class AiVisionService {
       category,
       confidence: d.confidence,
       severity: d.severity,
+      severityScore: d.severityScore,
       metadata: d.metadata,
     }));
 
     onProgress?.('completed', 100);
+
+    const isVerified = serviceResult.operationalState === 'DAMAGE_VERIFIED';
 
     return {
       imageUrl,
@@ -237,14 +253,18 @@ export class AiVisionService {
         slaDeadlineHours: authRoute.slaHours,
       },
       priorityExplainability,
-      recommendedAction: authRoute.recommendedAction,
+      recommendedAction: isVerified ? authRoute.recommendedAction : 'MANUAL INSPECTION REQUIRED (UNCERTAIN FINDING)',
       suggestedAuthorityId: authRoute.authority.id,
       departmentName: authRoute.departmentName,
       modelEngineName: serviceResult.modelEngineName,
-      outcomeStatus: 'defects_detected',
+      outcomeStatus: isVerified ? 'defects_detected' : 'uncertain',
+      operationalState: serviceResult.operationalState,
       validationResult: serviceResult.validation,
-      isActionable: true,
-      statusExplanation: `Actionable defect detected: ${primaryDet.typeLabel} with severity ${severityScore}/100.`,
+      isActionable: isVerified,
+      statusExplanation: isVerified
+        ? `Actionable defect detected: ${primaryDet.typeLabel} with severity ${severityScore}/100.`
+        : `Potential defect detected with ambiguous visual evidence. Manual engineer verification required.`,
+      cropVerifications: serviceResult.cropVerifications || [],
     };
   }
 }

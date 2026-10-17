@@ -1,6 +1,8 @@
 import { DetectionClass, InfrastructureCategory, Severity } from '../../types/infrastructure';
 import { ImagePixelBuffer, RawDefectDetection, DefectEvidence } from './types';
 import { MODEL_CAPABILITIES, getModelCapabilityForClass } from './modelRegistry';
+import { DefectCropVerifier } from './defectCropVerifier';
+import { RoadSurfaceSegmenter, VehicleEnvelope } from './roadSurfaceSegmenter';
 
 /**
  * Genuine Computer Vision Engine for Infrastructure Defect Detection
@@ -11,7 +13,7 @@ export class InfrastructureCvEngine {
   /**
    * Run computer vision defect detection on validated image buffer
    */
-  static detectDefects(buffer: ImagePixelBuffer): RawDefectDetection[] {
+  static detectDefects(buffer: ImagePixelBuffer, sceneType?: string): RawDefectDetection[] {
     const { width, height } = buffer;
     const candidates: RawDefectDetection[] = [];
 
@@ -102,14 +104,24 @@ export class InfrastructureCvEngine {
       }
     }
 
+    // Pre-detect vehicle envelopes to delineate vehicle superstructure from road pavement
+    const vehicleEnvelopes = RoadSurfaceSegmenter.detectVehicleEnvelopes(buffer);
+
     // 3. Scan for Pothole Cavities
     // Localized dark depression with elevated border gradient
-    const potholeCandidates = this.extractCavityAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance);
+    const potholeCandidates = this.extractCavityAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
     candidates.push(...potholeCandidates);
 
     // 4. Scan for Road Fissures and Cracks
     // High-gradient elongated connected components
-    const crackCandidates = this.extractFissureAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance);
+    const crackCandidates = this.extractFissureAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
+    if (sceneType === 'concrete_sidewalk') {
+      for (const det of crackCandidates) {
+        det.type = 'damaged_sidewalk';
+        det.category = 'sidewalk_hazard';
+        det.label = `Sidewalk Slab Discontinuity / Trip Hazard (${det.evidence.aspectRatio > 1.5 ? 'Transverse' : 'Longitudinal'})`;
+      }
+    }
     candidates.push(...crackCandidates);
 
     // 5. Scan for Waste / Refuse Accumulations
@@ -117,23 +129,43 @@ export class InfrastructureCvEngine {
     const wasteCandidates = this.extractWasteAnomalies(lumGrid, colorVarGrid, gradGrid, gridCols, gridRows);
     candidates.push(...wasteCandidates);
 
-    // 6. Non-Maximum Suppression (NMS) to eliminate overlapping boxes
-    const suppressed = this.applyNonMaximumSuppression(candidates, 0.40);
+    // 5b. Scan for Storm Drain Surcharges / Obstructed Culvert Inlets
+    const drainCandidates = this.extractDrainAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
+    candidates.push(...drainCandidates);
 
-    // 7. Confidence Calibration and Threshold Filtering
-    const validatedDetections: RawDefectDetection[] = [];
+    // 6. Non-Maximum Suppression (NMS) with containment to eliminate duplicate and nested boxes
+    const suppressed = this.applyNonMaximumSuppression(candidates, 0.35);
+
+    // 7. Multi-Stage Crop Verification & Confidence Calibration (Phase 3)
+    const verifiedCandidates: RawDefectDetection[] = [];
 
     for (const det of suppressed) {
+      // Stage C Crop-Level Secondary Verification
+      const cropVerification = DefectCropVerifier.verifyCrop(buffer, det.type, det.evidence, ambientLuminance, vehicleEnvelopes);
+      det.evidence.cropVerification = cropVerification;
+
+      // Reject if contradictory evidence found (manhole cover, asphalt patch, soft shadow, painted marking, vehicle superstructure/wheel/grille)
+      if (!cropVerification.supportsPositiveFinding) {
+        continue;
+      }
+
       const capability = getModelCapabilityForClass(det.type);
       const minThreshold = capability?.calibratedThreshold ?? 65.0;
 
+      // Apply crop-calibrated confidence
+      det.evidence.calibratedConfidence = cropVerification.cropCalibratedConfidence;
+
       // Only retain predictions that exceed the calibrated evidence threshold
       if (det.evidence.calibratedConfidence >= minThreshold) {
-        validatedDetections.push(det);
+        verifiedCandidates.push(det);
       }
     }
 
-    return validatedDetections;
+    // 8. Post-Verification Deduplication & Containment Suppression Pass
+    // Eliminates nested concentric boxes that passed secondary verification
+    const finalDetections = this.applyNonMaximumSuppression(verifiedCandidates, 0.28);
+
+    return finalDetections;
   }
 
   /**
@@ -144,7 +176,8 @@ export class InfrastructureCvEngine {
     gradGrid: Float32Array,
     cols: number,
     rows: number,
-    ambientLum: number
+    ambientLum: number,
+    vehicleEnvelopes: VehicleEnvelope[] = []
   ): RawDefectDetection[] {
     const visited = new Uint8Array(cols * rows);
     const detections: RawDefectDetection[] = [];
@@ -171,9 +204,42 @@ export class InfrastructureCvEngine {
             const spanW = maxC - minC + 1;
             const spanH = maxR - minR + 1;
             const aspect = spanW / spanH;
-
             // Potholes have cohesive aspect ratios (not an infinite thin line)
             if (aspect >= 0.35 && aspect <= 2.8) {
+              // Potholes cannot physically exist on upper vehicle superstructure (roof, destination board, windows)
+              const centerNormX = ((minC + maxC) / (2 * cols)) * 100;
+              const centerNormY = ((minR + maxR) / (2 * rows)) * 100;
+              const isInsideVehicleUpper = vehicleEnvelopes.some(
+                (env) =>
+                  centerNormX >= env.minX &&
+                  centerNormX <= env.maxX &&
+                  centerNormY >= env.minY &&
+                  centerNormY <= env.minY + (env.maxY - env.minY) * 0.70
+              );
+              if (isInsideVehicleUpper) {
+                continue;
+              }
+              // Measure interior texture excluding perimeter border (c > minC+1 && c < maxC-1 && r > minR+1 && r < maxR-1)
+              // Drainage culverts have metallic grating bars across the interior (avgStrictInteriorGrad >= 6.0 && maxInnerLum >= 55)
+              let innerGradSum = 0;
+              let innerCount = 0;
+              let maxInnerLum = 0;
+              for (const cellIdx of component.cells) {
+                const c = cellIdx % cols;
+                const cr = Math.floor(cellIdx / cols);
+                if (c > minC + 1 && c < maxC - 1 && cr > minR + 1 && cr < maxR - 1) {
+                  innerGradSum += gradGrid[cellIdx];
+                  if (lumGrid[cellIdx] > maxInnerLum) maxInnerLum = lumGrid[cellIdx];
+                  innerCount++;
+                }
+              }
+              const avgStrictInteriorGrad = innerCount > 0 ? innerGradSum / innerCount : 0;
+
+              // If internal structure exhibits strong metallic grating bars (maxInnerLum >= 55 && avgStrictInteriorGrad >= 6.0), delegate to drainage segmenter
+              if (maxInnerLum >= 55 && avgStrictInteriorGrad >= 6.0 && r >= rows * 0.30) {
+                continue;
+              }
+
               // Measure perimeter edge gradient
               let borderGradSum = 0;
               let borderCount = 0;
@@ -240,7 +306,8 @@ export class InfrastructureCvEngine {
     gradGrid: Float32Array,
     cols: number,
     rows: number,
-    ambientLum: number
+    ambientLum: number,
+    vehicleEnvelopes: VehicleEnvelope[] = []
   ): RawDefectDetection[] {
     const visited = new Uint8Array(cols * rows);
     const detections: RawDefectDetection[] = [];
@@ -274,6 +341,19 @@ export class InfrastructureCvEngine {
           const minDim = Math.min(spanW, spanH);
 
           if (component.cells.length >= 6 && maxDim >= minDim * 1.8) {
+            // Road cracks cannot exist inside a vehicle envelope (window gaskets, body seams)
+            const centerNormX = ((component.minC + component.maxC) / (2 * cols)) * 100;
+            const centerNormY = ((component.minR + component.maxR) / (2 * rows)) * 100;
+            const isInsideVehicle = vehicleEnvelopes.some(
+              (env) =>
+                centerNormX >= env.minX &&
+                centerNormX <= env.maxX &&
+                centerNormY >= env.minY &&
+                centerNormY <= env.maxY
+            );
+            if (isInsideVehicle) {
+              continue;
+            }
             const coveragePct = (component.cells.length / (cols * rows)) * 100;
             const avgGrad = component.avgL;
             const aspect = spanW / spanH;
@@ -382,6 +462,100 @@ export class InfrastructureCvEngine {
   }
 
   /**
+   * Scan for stormwater drain surcharges / obstructed culvert inlets
+   */
+  private static extractDrainAnomalies(
+    lumGrid: Float32Array,
+    gradGrid: Float32Array,
+    cols: number,
+    rows: number,
+    ambientLum: number,
+    vehicleEnvelopes: VehicleEnvelope[] = []
+  ): RawDefectDetection[] {
+    const visited = new Uint8Array(cols * rows);
+    const detections: RawDefectDetection[] = [];
+
+    // Gutter / curb drain zone: rows >= rows * 0.30
+    const startRow = Math.floor(rows * 0.30);
+    for (let r = startRow; r < rows - 6; r++) {
+      for (let c = 6; c < cols - 6; c++) {
+        const idx = r * cols + c;
+        if (visited[idx]) continue;
+
+        // Drainage inlet: dark sunken pool or grating
+        if (lumGrid[idx] < Math.max(15, ambientLum - 30)) {
+          // Check if there are periodic grating edges or high gradient inside
+          const component = this.floodFillRegion(lumGrid, visited, cols, rows, c, r, Math.max(15, ambientLum - 22));
+          if (component.cells.length >= 8 && component.cells.length <= cols * rows * 0.4) {
+            // Stormwater drains cannot exist on vehicle superstructure (grille, bumper, panels)
+            const centerNormX = ((component.minC + component.maxC) / (2 * cols)) * 100;
+            const centerNormY = ((component.minR + component.maxR) / (2 * rows)) * 100;
+            const isInsideVehicle = vehicleEnvelopes.some(
+              (env) =>
+                centerNormX >= env.minX &&
+                centerNormX <= env.maxX &&
+                centerNormY >= env.minY &&
+                centerNormY <= env.maxY
+            );
+            if (isInsideVehicle) {
+              continue;
+            }
+
+            const spanW = component.maxC - component.minC + 1;
+            const spanH = component.maxR - component.minR + 1;
+            const aspect = spanW / spanH;
+
+            // Check internal grating / puddle texture: real culverts have metallic grating bars (avgInnerGrad >= 5.5)
+            // and cohesive aspect ratio (not an infinite lane stripe across the entire road)
+            let innerGradSum = 0;
+            let innerCount = 0;
+            let maxInnerLum = 0;
+            for (const cellIdx of component.cells) {
+              innerGradSum += gradGrid[cellIdx];
+              if (lumGrid[cellIdx] > maxInnerLum) maxInnerLum = lumGrid[cellIdx];
+              innerCount++;
+            }
+            const avgInnerGrad = innerCount > 0 ? innerGradSum / innerCount : 0;
+
+            // Real culvert inlets have periodic metallic grating bars reflecting light (maxInnerLum >= 55)
+            if (avgInnerGrad >= 5.5 && maxInnerLum >= 55 && spanW >= 6 && spanH >= 6 && aspect >= 0.35 && aspect <= 2.8 && spanH <= rows * 0.45) {
+              const coveragePct = (component.cells.length / (cols * rows)) * 100;
+              const contrastDelta = ambientLum - component.avgL;
+              const rawConfidence = Math.min(1.0, 0.4 + (contrastDelta / 60) * 0.3 + (avgInnerGrad / 15) * 0.3);
+              const calibratedPct = Math.round(Math.min(94, Math.max(68, (0.50 + 0.50 * rawConfidence) * 100)));
+
+              const x = Math.round((component.minC / cols) * 100);
+              const y = Math.round((component.minR / rows) * 100);
+              const width = Math.round((spanW / cols) * 100);
+              const height = Math.round((spanH / rows) * 100);
+
+              const evidence: DefectEvidence = {
+                rawScore: rawConfidence,
+                calibratedConfidence: calibratedPct,
+                areaPixels: component.cells.length,
+                frameCoveragePct: Number(coveragePct.toFixed(1)),
+                contrastDelta: Math.round(contrastDelta),
+                edgeDensity: Number(avgInnerGrad.toFixed(1)),
+                aspectRatio: Number((spanW / spanH).toFixed(2)),
+                boundingBox: { x, y, width, height },
+                pixelBox: { minX: component.minC, minY: component.minR, maxX: component.maxC, maxY: component.maxR },
+              };
+
+              detections.push({
+                type: 'overflowing_drain',
+                category: 'drainage_overflow',
+                label: `Stormwater Surcharge & Obstructed Inlet (~${evidence.contrastDelta}ΔL)`,
+                evidence,
+              });
+            }
+          }
+        }
+      }
+    }
+    return detections;
+  }
+
+  /**
    * Flood fill connected component helper
    */
   private static floodFillRegion(
@@ -449,11 +623,13 @@ export class InfrastructureCvEngine {
   }
 
   /**
-   * Apply Non-Maximum Suppression (NMS) to eliminate duplicate/overlapping boxes
+   * Apply Non-Maximum Suppression (NMS) and Containment Suppression
+   * Eliminates duplicate, overlapping, and nested concentric candidate boxes
    */
   private static applyNonMaximumSuppression(
     detections: RawDefectDetection[],
-    iouThreshold = 0.40
+    iouThreshold = 0.35,
+    containmentThreshold = 0.55
   ): RawDefectDetection[] {
     if (detections.length <= 1) return detections;
 
@@ -471,17 +647,47 @@ export class InfrastructureCvEngine {
       for (let i = sorted.length - 1; i >= 0; i--) {
         const candidate = sorted[i];
 
-        // Same category overlap check
-        if (candidate.category === current.category) {
-          const iou = this.calculateIoU(current.evidence.boundingBox, candidate.evidence.boundingBox);
-          if (iou >= iouThreshold) {
-            sorted.splice(i, 1); // Suppress lower-confidence duplicate
-          }
+        // Spatial overlap check: an anomaly cannot physically be two contradictory defects in the same box
+        const iou = this.calculateIoU(current.evidence.boundingBox, candidate.evidence.boundingBox);
+        const containment = this.calculateContainment(current.evidence.boundingBox, candidate.evidence.boundingBox);
+
+        // Suppress lower-confidence duplicate if either IoU exceeds threshold OR one box contains the other
+        if (iou >= iouThreshold || containment >= containmentThreshold) {
+          sorted.splice(i, 1);
         }
       }
     }
 
     return retained;
+  }
+
+  /**
+   * Calculate Containment (Intersection over Min Area) of two bounding boxes (0-100 coordinates)
+   * Detects nested boxes where a smaller box is inside a larger box even if IoU is moderate
+   */
+  static calculateContainment(
+    a: { x: number; y: number; width: number; height: number },
+    b: { x: number; y: number; width: number; height: number }
+  ): number {
+    const ax2 = a.x + a.width;
+    const ay2 = a.y + a.height;
+    const bx2 = b.x + b.width;
+    const by2 = b.y + b.height;
+
+    const x1 = Math.max(a.x, b.x);
+    const y1 = Math.max(a.y, b.y);
+    const x2 = Math.min(ax2, bx2);
+    const y2 = Math.min(ay2, by2);
+
+    const interWidth = Math.max(0, x2 - x1);
+    const interHeight = Math.max(0, y2 - y1);
+    const intersectionArea = interWidth * interHeight;
+
+    const areaA = a.width * a.height;
+    const areaB = b.width * b.height;
+    const minArea = Math.min(areaA, areaB);
+
+    return minArea > 0 ? intersectionArea / minArea : 0;
   }
 
   /**

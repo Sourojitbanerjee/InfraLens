@@ -88,11 +88,14 @@ const server = http.createServer(async (req, res) => {
         res.end(
           JSON.stringify({
             status: 'rejected',
+            operationalState: validation.operationalState,
+            validation,
             rejectionReason: validation.rejectionReason,
             message: validation.rejectionMessage,
             sceneType: validation.sceneType,
             metrics: validation.metrics,
             detections: [],
+            cropVerifications: [],
             latencyMs: Math.round(performance.now() - startTime),
           })
         );
@@ -100,7 +103,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       // Stage B: Computer Vision Defect Detection
-      const rawDetections = InfrastructureCvEngine.detectDefects(buffer);
+      const rawDetections = InfrastructureCvEngine.detectDefects(buffer, validation.sceneType);
 
       // Stage C: Physical Severity & Metadata Calculation
       const structuredDetections: Detection[] = rawDetections.map((det, idx) => {
@@ -129,14 +132,26 @@ const server = http.createServer(async (req, res) => {
         };
       });
 
+      const cropVerifications = rawDetections
+        .map((d) => d.evidence.cropVerification)
+        .filter(Boolean);
+
+      let operationalState = 'NO_DAMAGE_DETECTED';
+      if (structuredDetections.length > 0) {
+        const hasHighConfidence = structuredDetections.some((d) => d.confidence >= 65);
+        operationalState = hasHighConfidence ? 'DAMAGE_VERIFIED' : 'UNCERTAIN';
+      }
+
       const latencyMs = Math.round(performance.now() - startTime);
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
-          status: structuredDetections.length > 0 ? 'defects_detected' : 'nominal_infrastructure',
+          status: structuredDetections.length > 0 ? (operationalState === 'DAMAGE_VERIFIED' ? 'defects_detected' : 'uncertain') : 'nominal_infrastructure',
+          operationalState,
           validation,
           detections: structuredDetections,
+          cropVerifications,
           defectCount: structuredDetections.length,
           modelName: 'InfraLens-EdgeCV-v2.0 (Verified Vision Engine)',
           latencyMs,
