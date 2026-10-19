@@ -71,6 +71,26 @@ export class AuthorityResolver {
         deptName = 'Metropolitan Transportation Agency (Signals & Signs)';
         action = 'OVERHEAD GANTRY SIGN RE-ANCHORING';
         break;
+      case 'bridge_damage':
+        targetId = 'auth-roads';
+        deptName = 'Bridge Engineering & Structural Integrity Division';
+        action = 'EXPANSION BEARING & SPALLING REPAIR';
+        break;
+      case 'building_damage':
+        targetId = 'auth-roads';
+        deptName = 'Department of Building Inspection & Public Structures';
+        action = 'STRUCTURAL LOAD BEARING ASSESSMENT & MASONRY STABILIZATION';
+        break;
+      case 'railway_damage':
+        targetId = 'auth-roads';
+        deptName = 'Metropolitan Rail Infrastructure & Transit Authority';
+        action = 'TRACK ALIGNMENT & DEFECTIVE RAIL SECTION REPLACEMENT';
+        break;
+      case 'public_utility':
+        targetId = 'auth-lighting';
+        deptName = 'Public Utility Infrastructure Maintenance Authority';
+        action = 'UTILITY POLE SHORING & RE-ANCHORING';
+        break;
     }
 
     const matchedAuth =

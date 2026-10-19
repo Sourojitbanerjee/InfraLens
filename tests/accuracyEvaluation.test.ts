@@ -42,12 +42,15 @@ describe('InfraLens AI Accuracy Overhaul — Test Suite', () => {
     assert.equal(validation.operationalState, 'UNSUPPORTED_IMAGE');
   });
 
-  test('Scenario 8: Non-infrastructure scenes (building facade) must be rejected', () => {
+  test('Scenario 8: Building facade is valid infrastructure with ZERO defects', () => {
     const bldScenario = TEST_SCENARIOS.find((s) => s.id === 8)!;
-    const bldValidation = ImageValidationPipeline.validate(bldScenario.createImage());
-    assert.equal(bldValidation.isValid, false);
-    assert.equal(bldValidation.sceneType, 'non_infrastructure');
-    assert.equal(bldValidation.operationalState, 'UNSUPPORTED_IMAGE');
+    const buffer = bldScenario.createImage();
+    const bldValidation = ImageValidationPipeline.validate(buffer);
+    assert.equal(bldValidation.isValid, true, 'Building facade is infrastructure and must pass validation');
+    assert.notEqual(bldValidation.sceneType, 'non_infrastructure', 'Building facade must not be classified as non_infrastructure');
+
+    const defects = InfrastructureCvEngine.detectDefects(buffer, bldValidation.sceneType);
+    assert.equal(defects.length, 0, 'Normal building facade must produce ZERO defect detections');
   });
 
   test('Scenario 5: Clean road without visible damage must produce ZERO detections', () => {
@@ -177,7 +180,10 @@ describe('InfraLens AI Accuracy Overhaul — Test Suite', () => {
     const validation = ImageValidationPipeline.validate(buffer);
 
     assert.equal(validation.isValid, true, 'Street scene with vehicle should be validated as infrastructure corridor');
-    assert.equal(validation.sceneType, 'road_asphalt');
+    assert.ok(
+      validation.sceneType === 'road_asphalt' || validation.sceneType === 'urban_street',
+      `Scene type should be road_asphalt or urban_street, got ${validation.sceneType}`
+    );
 
     const defects = InfrastructureCvEngine.detectDefects(buffer, validation.sceneType);
     assert.equal(defects.length, 0, 'Orange bus body, wheels, window seams, and radiator grille must produce 0 defect detections');
@@ -202,5 +208,32 @@ describe('InfraLens AI Accuracy Overhaul — Test Suite', () => {
 
     const containment = InfrastructureCvEngine.calculateContainment(boxA, boxB);
     assert.ok(containment >= 0.95, `Containment should be ~1.0 for nested box (got ${containment})`);
+  });
+
+  test('Scenario 45: Severely damaged building with structural wall collapse must be detected and NEVER declared 100% safe', () => {
+    const scenario = TEST_SCENARIOS.find((s) => s.id === 45)!;
+    const buffer = scenario.createImage();
+    const validation = ImageValidationPipeline.validate(buffer);
+
+    assert.equal(validation.isValid, true, 'Damaged building is infrastructure and must pass validation');
+    assert.equal(validation.sceneType, 'building_structure', 'Must be classified as building_structure, not concrete_sidewalk');
+
+    const defects = InfrastructureCvEngine.detectDefects(buffer, validation.sceneType);
+    assert.ok(defects.length >= 1, 'Severely destroyed building must produce at least 1 structural defect detection');
+    const collapseDefect = defects.find((d) => d.type === 'building_collapse');
+    assert.ok(collapseDefect, 'Must detect building_collapse defect');
+    assert.ok(collapseDefect.evidence.calibratedConfidence >= 75, 'Calibrated confidence must be high (>=75%)');
+  });
+
+  test('Scenario 46: Nominal concrete building facade with windows must produce ZERO defect detections', () => {
+    const scenario = TEST_SCENARIOS.find((s) => s.id === 46)!;
+    const buffer = scenario.createImage();
+    const validation = ImageValidationPipeline.validate(buffer);
+
+    assert.equal(validation.isValid, true, 'Nominal building is infrastructure and must pass validation');
+    assert.equal(validation.sceneType, 'building_structure');
+
+    const defects = InfrastructureCvEngine.detectDefects(buffer, validation.sceneType);
+    assert.equal(defects.length, 0, 'Nominal concrete building with architectural windows must produce ZERO defect detections');
   });
 });

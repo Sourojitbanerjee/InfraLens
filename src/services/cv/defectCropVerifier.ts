@@ -156,13 +156,18 @@ export class DefectCropVerifier {
     const isOnPlausibleRoadSurface = context.isOnPlausibleRoadSurface;
     const roadSurfaceConfidence = context.roadSurfaceConfidence;
 
+    const isRoadDefect = defectType === 'pothole' || defectType === 'damaged_road' || defectType === 'damaged_sidewalk' || defectType === 'overflowing_drain';
+
     if (context.rejectionReason) {
-      contradictoryEvidence.push(context.rejectionReason);
+      // Pavement aggregate texture requirement strictly applies to road defects; structural masonry, bridges, and railways have their own substrate
+      if (isRoadDefect || !context.rejectionReason.includes('road aggregate texture')) {
+        contradictoryEvidence.push(context.rejectionReason);
+      }
     }
     if (defectType === 'overflowing_drain' && (isVehicleGrille || isVehicleSuperstructure || isVehicleWheel)) {
       contradictoryEvidence.push('Periodic metallic grating bars belong to a vehicle front radiator grille / ventilation intake, not a roadway stormwater culvert.');
     }
-    if (isOnPlausibleRoadSurface && roadSurfaceConfidence >= 45) {
+    if (isRoadDefect && isOnPlausibleRoadSurface && roadSurfaceConfidence >= 45) {
       supportingEvidence.push('Plausible road surface verified: candidate is embedded in contiguous neutral asphalt/concrete pavement.');
     }
 
@@ -247,10 +252,97 @@ export class DefectCropVerifier {
       contradictoryEvidence.push('High specular reflectance dynamic range consistent with wet road puddle reflection.');
     }
 
+    // 8b. Building Window / Architectural Opening Discriminator
+    let isBuildingWindowOrMortar = false;
+    const isWindowCandidate =
+      defectType === 'structural_crack' ||
+      defectType === 'building_collapse' ||
+      defectType === 'rubble_debris';
+    if (isWindowCandidate) {
+      // Normal windows: planar smooth interior glass (optically flat: maxL - minL < 25, meanInteriorGrad < 2.5)
+      const isSmoothPlanar = (defectType === 'building_collapse' || defectType === 'rubble_debris' || defectType === 'structural_crack') &&
+                             meanInteriorGrad < 2.5 && (maxL - minL) < 25 && totalCropPixels >= 40;
+      const isRectangular = (cropAspect >= 0.60 && cropAspect <= 1.50) || (cropAspect >= 1.75 && cropAspect <= 2.25);
+      if (isSmoothPlanar || (isRectangular && meanInteriorGrad < 2.2 && (meanPerimeterGrad > 4.5 || (maxL - minL) < 30) && totalCropPixels >= 40 && evidence.frameCoveragePct <= 7.0)) {
+        isBuildingWindowOrMortar = true;
+        contradictoryEvidence.push('Planar uniform interior with low dynamic range consistent with architectural glazed window opening.');
+      }
+    }
+
+    // 8c. Railway Specular Reflection Discriminator
+    let isRailwaySpecularReflect = false;
+    if (defectType === 'railway_defect') {
+      // Intact steel rail has continuous specular highlight (high maxL, straight line)
+      if (maxL >= 210 && meanPerimeterGrad < 4.0 && cropAspect > 3.0) {
+        isRailwaySpecularReflect = true;
+        contradictoryEvidence.push('Continuous linear specular reflectance consistent with intact steel rail running surface.');
+      }
+    }
+
+    // 8d. Bridge Expansion Joint Discriminator
+    let isBridgeExpansionJoint = false;
+    if (defectType === 'bridge_expansion_defect' || defectType === 'spalling_concrete') {
+      // Engineered expansion joints have perfectly uniform straight width across the crop
+      if (cropAspect > 3.5 && meanInteriorGrad < 2.2 && Math.abs(avgR - avgG) < 8) {
+        isBridgeExpansionJoint = true;
+        contradictoryEvidence.push('Uniform linear joint width consistent with normal engineered bridge deck expansion joint.');
+      }
+    }
+
     // 9. Evaluate Supporting Evidence based on defect class
     const contrastDiff = ambientLuminance - meanL;
 
-    if (defectType === 'garbage_accumulation') {
+    if (defectType === 'building_collapse') {
+      if (contrastDiff >= 18 || evidence.contrastDelta >= 18) {
+        supportingEvidence.push(`Structural wall breach: cavity void is ${Math.round(contrastDiff)}ΔL darker than surrounding facade.`);
+      }
+      if (meanPerimeterGrad >= 3.0 || evidence.edgeDensity >= 2.5) {
+        supportingEvidence.push('Fractured concrete perimeter border confirms envelope breach and structural wall collapse.');
+      }
+      if (evidence.frameCoveragePct >= 1.0) {
+        supportingEvidence.push(`Breach scale: covers ${evidence.frameCoveragePct}% of building frame, representing major architectural collapse.`);
+      }
+    } else if (defectType === 'rubble_debris') {
+      if (meanInteriorGrad >= 2.2 || evidence.edgeDensity >= 2.8) {
+        supportingEvidence.push(`Volumetric rubble texture: multi-scale gradient magnitude ${evidence.edgeDensity} confirms crushed concrete/masonry debris.`);
+      }
+      if (evidence.frameCoveragePct >= 0.8) {
+        supportingEvidence.push(`Spatial debris accumulation: covers ${evidence.frameCoveragePct}% of inspection frame.`);
+      }
+      if (evidence.contrastDelta >= 8 || Math.abs(contrastDiff) >= 8) {
+        supportingEvidence.push('Photometric contrast confirms textured debris pile against adjacent structural substrate.');
+      }
+    } else if (defectType === 'structural_crack') {
+      if (evidence.edgeDensity >= 3.8 || meanPerimeterGrad >= 3.5) {
+        supportingEvidence.push(`Structural shear crack: edge gradient magnitude ${evidence.edgeDensity} confirms non-rectilinear fracture traversing structural masonry/concrete.`);
+      }
+      if (evidence.aspectRatio >= 1.4 || evidence.aspectRatio <= 0.7) {
+        supportingEvidence.push(`Diagonal shear propagation: aspect ratio ${evidence.aspectRatio} confirms mechanical stress fracture.`);
+      }
+      if (evidence.contrastDelta >= 10 || Math.abs(contrastDiff) >= 10) {
+        supportingEvidence.push(`Optical crack trough: fracture depth depression is ${evidence.contrastDelta}ΔL darker than surrounding facade.`);
+      }
+    } else if (defectType === 'spalling_concrete') {
+      if (contrastDiff >= 12 || Math.abs(contrastDiff) >= 12) {
+        supportingEvidence.push(`Concrete spalling void: cavity is ${Math.round(contrastDiff)}ΔL darker than intact concrete deck/pier.`);
+      }
+      if (meanPerimeterGrad >= 4.0 || evidence.edgeDensity >= 3.5) {
+        supportingEvidence.push('Irregular spalled perimeter border confirms mechanical delamination and concrete loss.');
+      }
+      if (evidence.frameCoveragePct >= 0.4) {
+        supportingEvidence.push(`Spalling extent: occupies ${evidence.frameCoveragePct}% of visual inspection frame.`);
+      }
+    } else if (defectType === 'railway_defect') {
+      if (contrastDiff >= 14 || evidence.contrastDelta >= 14) {
+        supportingEvidence.push(`Rail head fracture notch: localized cavity depression (${evidence.contrastDelta}ΔL) breaks rail continuity.`);
+      }
+      if (meanPerimeterGrad >= 4.5 || evidence.edgeDensity >= 4.0) {
+        supportingEvidence.push('High-gradient fracture border confirms severed rail cross-section or foreign track obstruction.');
+      }
+      if (evidence.frameCoveragePct >= 0.3) {
+        supportingEvidence.push(`Defect scale occupies ${evidence.frameCoveragePct}% of railway corridor frame.`);
+      }
+    } else if (defectType === 'garbage_accumulation') {
       const chromaticVar = Math.abs(avgR - avgG) + Math.abs(avgG - avgB);
       if (chromaticVar > 14 || evidence.contrastDelta > 15) {
         supportingEvidence.push(`Multi-hue chromatic debris cluster distinguishable from neutral road asphalt (${chromaticVar.toFixed(1)} chromatic delta).`);
@@ -333,6 +425,9 @@ export class DefectCropVerifier {
       isVehicleWheel,
       isVehicleWindowOrSeam,
       isVehicleGrille,
+      isBuildingWindowOrMortar,
+      isRailwaySpecularReflect,
+      isBridgeExpansionJoint,
       isOnPlausibleRoadSurface,
       roadSurfaceConfidence,
       cropCalibratedConfidence: calibratedConfidence,

@@ -88,6 +88,14 @@ export class ImpactEngine {
       recommendedAction = 'RAPID COMPACTOR TRUCK HAZMAT CLEARANCE';
     } else if (category === 'traffic_signage') {
       recommendedAction = 'OVERHEAD GANTRY SIGN RE-ANCHORING';
+    } else if (category === 'bridge_damage') {
+      recommendedAction = severityScore > 80 ? 'EMERGENCY BRIDGE ABUTMENT SHORING & REBAR ENCASEMENT' : 'EXPANSION BEARING GROUTING & JOINT SEAL';
+    } else if (category === 'building_damage') {
+      recommendedAction = severityScore > 80 ? 'STRUCTURAL LOAD REDUCTION & MASONRY TIE-ROD STABILIZATION' : 'EPOXY CRACK INJECTION & SEALING';
+    } else if (category === 'railway_damage') {
+      recommendedAction = severityScore > 80 ? 'EMERGENCY TRACK SPEED RESTRICTION & RAIL SECTION REPLACEMENT' : 'BALLAST TAMPING & TIE REALIGNMENT';
+    } else if (category === 'public_utility') {
+      recommendedAction = 'UTILITY POLE GUY-WIRE ANCHORING & JUNCTION REPAIR';
     }
 
     // Nearby risks representation

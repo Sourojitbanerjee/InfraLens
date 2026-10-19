@@ -41,13 +41,13 @@ export class RoadSurfaceSegmenter {
     // 1. Vivid Municipal Orange Transit Bus (R >> B, G moderate, high saturation)
     // Common on San Francisco Muni, London/NYC commuter buses, etc.
     const isOrangeBus =
-      r >= 130 &&
-      g >= 40 &&
-      g <= 180 &&
-      b <= 90 &&
-      r > g + 18 &&
-      (r - b) >= 55 &&
-      sat >= 0.30;
+      r >= 170 &&
+      g >= 50 &&
+      g <= 160 &&
+      b <= 65 &&
+      r > g + 40 &&
+      (r - b) >= 90 &&
+      sat >= 0.52;
 
     // 2. Bright Red Vehicle Body
     const isRedVehicle = r >= 135 && g <= 90 && b <= 90 && (r - Math.max(g, b)) >= 45 && sat >= 0.35;
@@ -159,8 +159,8 @@ export class RoadSurfaceSegmenter {
           }
         }
 
-        // A vehicle body covers a significant spatial cluster (at least 6 grid cells)
-        if (cellCount >= 6) {
+        // A vehicle body covers a significant spatial cluster (at least 6 grid cells, but less than 65% of frame)
+        if (cellCount >= 6 && cellCount <= gridCols * gridRows * 0.65) {
           // Expand bounding envelope to encompass full vehicle superstructure
           // (including tinted windows above body and wheel wells / tires directly below)
           const spanW = maxC - minC + 1;

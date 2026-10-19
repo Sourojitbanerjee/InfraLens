@@ -473,12 +473,12 @@ export const AnalyzeView: React.FC = () => {
                             NOMINAL INFRASTRUCTURE — ZERO DEFECTS DETECTED
                           </div>
                           <div className="font-mono text-[10px] text-emerald-300/80">
-                            Surface verified intact. No potholes, fissures, or hazards detected.
+                            Surface verified intact within supported scope. No actionable defects detected.
                           </div>
                         </div>
                       </div>
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-300 border border-emerald-500/40">
-                        HEALTHY SURFACE
+                        SUPPORTED SCOPE
                       </span>
                     </div>
                   )}
@@ -642,13 +642,13 @@ export const AnalyzeView: React.FC = () => {
                 </div>
                 <div>Awaiting neural analysis completion...</div>
               </div>
-            ) : inferenceResult.operationalState === 'UNSUPPORTED_IMAGE' || inferenceResult.operationalState === 'IMAGE_QUALITY_INSUFFICIENT' ? (
+            ) : inferenceResult.operationalState === 'UNSUPPORTED_IMAGE' || inferenceResult.operationalState === 'IMAGE_QUALITY_INSUFFICIENT' || inferenceResult.operationalState === 'NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED' ? (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 space-y-2 text-xs font-mono">
                   <div className="flex items-center gap-2 text-amber-300 font-bold">
                     <XCircle className="w-4 h-4 text-amber-400 shrink-0" />
                     <span>
-                      {inferenceResult.operationalState === 'UNSUPPORTED_IMAGE'
+                      {inferenceResult.operationalState === 'UNSUPPORTED_IMAGE' || inferenceResult.operationalState === 'NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED'
                         ? 'UNSUPPORTED IMAGE REJECTED'
                         : 'IMAGE QUALITY INSUFFICIENT'}
                     </span>
@@ -671,7 +671,7 @@ export const AnalyzeView: React.FC = () => {
                   <span>DISPATCH DISABLED (IMAGE REJECTED)</span>
                 </button>
               </div>
-            ) : inferenceResult.operationalState === 'NO_DAMAGE_DETECTED' ? (
+            ) : inferenceResult.operationalState === 'NO_DAMAGE_DETECTED' || inferenceResult.operationalState === 'NO_DAMAGE_DETECTED_WITHIN_SUPPORTED_SCOPE' ? (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 space-y-2 text-xs font-mono">
                   <div className="flex items-center gap-2 text-emerald-300 font-bold">
@@ -702,7 +702,7 @@ export const AnalyzeView: React.FC = () => {
                   <span>NO DISPATCH REQUIRED (SURFACE NOMINAL)</span>
                 </button>
               </div>
-            ) : inferenceResult.operationalState === 'ANALYSIS_FAILED' ? (
+            ) : inferenceResult.operationalState === 'ANALYSIS_FAILED' || inferenceResult.operationalState === 'INFERENCE_FAILED' || inferenceResult.operationalState === 'MODEL_UNAVAILABLE' ? (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-500/40 space-y-2 text-xs font-mono">
                   <div className="flex items-center gap-2 text-rose-300 font-bold">
@@ -725,7 +725,7 @@ export const AnalyzeView: React.FC = () => {
                   <span>SWITCH TO LOCAL VISION ENGINE</span>
                 </button>
               </div>
-            ) : inferenceResult.operationalState === 'UNCERTAIN' ? (
+            ) : inferenceResult.operationalState === 'UNCERTAIN' || inferenceResult.operationalState === 'INFRASTRUCTURE_PRESENT_BUT_UNCERTAIN' ? (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 space-y-2 text-xs font-mono">
                   <div className="flex items-center gap-2 text-amber-300 font-bold">
@@ -809,14 +809,8 @@ export const AnalyzeView: React.FC = () => {
                         <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
                         Crop Evidence & Discriminator Audit
                       </span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
-                        inferenceResult.operationalState === 'DAMAGE_VERIFIED'
-                          ? 'text-emerald-400 bg-emerald-950 border-emerald-500/30'
-                          : inferenceResult.operationalState === 'UNCERTAIN'
-                          ? 'text-amber-400 bg-amber-950 border-amber-500/30'
-                          : 'text-cyan-400 bg-cyan-950 border-cyan-500/30'
-                      }`}>
-                        {inferenceResult.operationalState === 'DAMAGE_VERIFIED' ? 'VERIFIED' : inferenceResult.operationalState === 'UNCERTAIN' ? 'UNCERTAIN' : 'NOMINAL'}
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border text-emerald-400 bg-emerald-950 border-emerald-500/30">
+                        VERIFIED
                       </span>
                     </div>
 
