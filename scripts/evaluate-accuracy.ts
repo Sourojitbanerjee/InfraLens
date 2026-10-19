@@ -23,7 +23,7 @@ interface EvaluationResultItem {
 
 export function runAccuracyEvaluation() {
   console.log('================================================================================');
-  console.log('       INFRALENS RIGOROUS 37-SCENARIO ACCURACY & RELIABILITY EVALUATION         ');
+  console.log(`       INFRALENS RIGOROUS ${TEST_SCENARIOS.length}-SCENARIO ACCURACY & RELIABILITY EVALUATION         `);
   console.log('================================================================================\n');
 
   const results: EvaluationResultItem[] = [];
@@ -47,6 +47,11 @@ export function runAccuracyEvaluation() {
     damaged_road: { tp: 0, fp: 0, fn: 0 },
     garbage_accumulation: { tp: 0, fp: 0, fn: 0 },
     overflowing_drain: { tp: 0, fp: 0, fn: 0 },
+    structural_crack: { tp: 0, fp: 0, fn: 0 },
+    spalling_concrete: { tp: 0, fp: 0, fn: 0 },
+    railway_defect: { tp: 0, fp: 0, fn: 0 },
+    building_collapse: { tp: 0, fp: 0, fn: 0 },
+    rubble_debris: { tp: 0, fp: 0, fn: 0 },
   };
 
   for (const scenario of TEST_SCENARIOS) {
@@ -78,7 +83,7 @@ export function runAccuracyEvaluation() {
     // Track blank/irrelevant rejection
     const isBlankOrIrrelevant =
       scenario.id === 1 || scenario.id === 2 || scenario.id === 3 || scenario.id === 4 ||
-      scenario.id === 8 || scenario.id === 14 || scenario.id === 15 || scenario.id === 16 ||
+      scenario.id === 14 || scenario.id === 15 || scenario.id === 16 ||
       scenario.id === 17 || scenario.id === 18;
 
     if (isBlankOrIrrelevant) {

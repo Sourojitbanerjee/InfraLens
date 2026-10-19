@@ -38,87 +38,27 @@ export const CLASS_TO_CATEGORY: Record<
   exposed_electrical_wire: { category: 'electrical_hazard', label: 'Exposed High-Voltage Line', baseThreatScore: 95 },
   damaged_sidewalk: { category: 'sidewalk_hazard', label: 'Displaced Paving / Trip Hazard', baseThreatScore: 65 },
   missing_road_sign: { category: 'traffic_signage', label: 'Missing / Dislodged Traffic Sign', baseThreatScore: 50 },
+  structural_crack: { category: 'building_damage', label: 'Structural Masonry Fracture', baseThreatScore: 82 },
+  building_collapse: { category: 'building_damage', label: 'Structural Wall Collapse & Breach', baseThreatScore: 98 },
+  rubble_debris: { category: 'building_damage', label: 'Rubble & Masonry Debris Accumulation', baseThreatScore: 86 },
+  spalling_concrete: { category: 'bridge_damage', label: 'Concrete Spalling & Exposed Rebar', baseThreatScore: 85 },
+  bridge_expansion_defect: { category: 'bridge_damage', label: 'Bridge Expansion Joint Failure', baseThreatScore: 76 },
+  railway_defect: { category: 'railway_damage', label: 'Defective / Fractured Rail Head', baseThreatScore: 92 },
+  utility_mast_damage: { category: 'public_utility', label: 'Severed / Damaged Utility Mast', baseThreatScore: 88 },
 };
 
 /**
  * Local Computer Vision Detection Service
  * Runs verified computer vision directly in the client (or Node test runner)
  * using ImageValidationPipeline and InfrastructureCvEngine.
- * Does NOT generate fake detections on blank or irrelevant images.
+ * Analyzes actual pixel content for every image without hardcoded shortcuts.
  */
 export class LocalCvDetectionService implements IDetectionService {
   name = 'InfraLens Local Vision Engine (Client-Side CV)';
   isSimulated = false;
 
-  async detect(imageSource: string, presetId?: string): Promise<DetectionServiceResult> {
-    // 1. Check if caller selected a known preset scenario
-    const matchedPreset = SAMPLE_STREET_IMAGES.find(
-      (p) => p.id === presetId || p.imageUrl === imageSource || (presetId && imageSource.includes(presetId))
-    );
-
-    if (matchedPreset) {
-      // Preset ground-truth scenario for demonstration & calibration
-      const detections = matchedPreset.detections.map((box, idx): Detection => {
-        let detType: DetectionClass = 'pothole';
-        if (box.label.toLowerCase().includes('pothole')) detType = 'pothole';
-        else if (box.label.toLowerCase().includes('drain') || box.label.toLowerCase().includes('water')) detType = 'overflowing_drain';
-        else if (box.label.toLowerCase().includes('slab') || box.label.toLowerCase().includes('trip')) detType = 'damaged_sidewalk';
-        else if (box.label.toLowerCase().includes('debris') || box.label.toLowerCase().includes('waste')) detType = 'garbage_accumulation';
-        else if (box.label.toLowerCase().includes('pole') || box.label.toLowerCase().includes('mast')) detType = 'broken_streetlight';
-
-        const coverage = Math.round((box.width * box.height) / 100);
-
-        return {
-          id: `det-${matchedPreset.id}-${idx}`,
-          type: detType,
-          typeLabel: box.label,
-          confidence: box.confidence,
-          boundingBox: {
-            x: box.x,
-            y: box.y,
-            width: box.width,
-            height: box.height,
-          },
-          severity: box.severity,
-          severityScore: box.severity === 'critical' ? 88 : box.severity === 'high' ? 74 : 52,
-          metadata: {
-            damageExtentMm: box.severity === 'critical' ? 95 : 42,
-            roadCoveragePct: coverage,
-            depthEstimateMm: box.severity === 'critical' ? 85 : 30,
-            surfaceType: 'asphalt',
-            notes: `Ground truth from reference dataset: ${box.label}`,
-          },
-        };
-      });
-
-      return {
-        detections,
-        validation: {
-          isValid: true,
-          operationalState: detections.length > 0 ? 'DAMAGE_VERIFIED' : 'NO_DAMAGE_DETECTED',
-          scenePresence: 'infrastructure_present',
-          status: 'valid_infrastructure',
-          sceneType: 'road_asphalt',
-          metrics: {
-            meanLuminance: 120,
-            rmsContrast: 35,
-            dynamicRange: 160,
-            edgeEnergy: 8.5,
-            colorEntropy: 4.8,
-            saturationMean: 0.15,
-            isUniform: false,
-            isGrayscaleOrNeutral: true,
-            aspectRatio: 1.6,
-          },
-          sceneConfidence: 96.0,
-        },
-        operationalState: detections.length > 0 ? 'DAMAGE_VERIFIED' : 'NO_DAMAGE_DETECTED',
-        modelEngineName: this.name,
-        isSimulated: false,
-      };
-    }
-
-    // 2. Decode the incoming image to raw pixel buffer
+  async detect(imageSource: string, _presetId?: string): Promise<DetectionServiceResult> {
+    // 1. Decode the incoming image to raw pixel buffer
     let buffer;
     try {
       buffer = await ImageDecoder.decode(imageSource);

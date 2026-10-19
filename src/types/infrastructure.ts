@@ -12,7 +12,14 @@ export type DetectionClass =
   | 'broken_streetlight'
   | 'exposed_electrical_wire'
   | 'damaged_sidewalk'
-  | 'missing_road_sign';
+  | 'missing_road_sign'
+  | 'structural_crack'
+  | 'building_collapse'
+  | 'rubble_debris'
+  | 'spalling_concrete'
+  | 'bridge_expansion_defect'
+  | 'railway_defect'
+  | 'utility_mast_damage';
 
 export type InfrastructureCategory = 
   | 'road_damage' 
@@ -21,7 +28,11 @@ export type InfrastructureCategory =
   | 'waste_accumulation' 
   | 'sidewalk_hazard'
   | 'traffic_signage'
-  | 'electrical_hazard';
+  | 'electrical_hazard'
+  | 'bridge_damage'
+  | 'building_damage'
+  | 'railway_damage'
+  | 'public_utility';
 
 export interface GeoLocation {
   latitude: number;

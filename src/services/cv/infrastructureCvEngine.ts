@@ -107,31 +107,62 @@ export class InfrastructureCvEngine {
     // Pre-detect vehicle envelopes to delineate vehicle superstructure from road pavement
     const vehicleEnvelopes = RoadSurfaceSegmenter.detectVehicleEnvelopes(buffer);
 
-    // 3. Scan for Pothole Cavities
-    // Localized dark depression with elevated border gradient
-    const potholeCandidates = this.extractCavityAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
-    candidates.push(...potholeCandidates);
-
-    // 4. Scan for Road Fissures and Cracks
-    // High-gradient elongated connected components
-    const crackCandidates = this.extractFissureAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
-    if (sceneType === 'concrete_sidewalk') {
-      for (const det of crackCandidates) {
-        det.type = 'damaged_sidewalk';
-        det.category = 'sidewalk_hazard';
-        det.label = `Sidewalk Slab Discontinuity / Trip Hazard (${det.evidence.aspectRatio > 1.5 ? 'Transverse' : 'Longitudinal'})`;
-      }
+    // 3. Scan for Pothole Cavities (Roads, Sidewalks, Urban Streets)
+    if (sceneType !== 'building_structure' && sceneType !== 'railway_track' && sceneType !== 'bridge_overpass' && sceneType !== 'public_utility') {
+      const potholeCandidates = this.extractCavityAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
+      candidates.push(...potholeCandidates);
     }
-    candidates.push(...crackCandidates);
 
-    // 5. Scan for Waste / Refuse Accumulations
-    // High local chromatic variance and texture grouping
-    const wasteCandidates = this.extractWasteAnomalies(lumGrid, colorVarGrid, gradGrid, gridCols, gridRows);
-    candidates.push(...wasteCandidates);
+    // 4. Scan for Road Fissures and Cracks (Roads, Sidewalks)
+    if (sceneType !== 'building_structure' && sceneType !== 'railway_track' && sceneType !== 'bridge_overpass' && sceneType !== 'public_utility') {
+      const crackCandidates = this.extractFissureAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
+      if (sceneType === 'concrete_sidewalk') {
+        for (const det of crackCandidates) {
+          det.type = 'damaged_sidewalk';
+          det.category = 'sidewalk_hazard';
+          det.label = `Sidewalk Slab Discontinuity / Trip Hazard (${det.evidence.aspectRatio > 1.5 ? 'Transverse' : 'Longitudinal'})`;
+        }
+      }
+      candidates.push(...crackCandidates);
+    }
+
+    // 5. Scan for Waste / Refuse Accumulations (Roads, Urban Streets, Sidewalks)
+    if (sceneType === 'road_asphalt' || sceneType === 'urban_street' || sceneType === 'concrete_sidewalk' || !sceneType) {
+      const wasteCandidates = this.extractWasteAnomalies(lumGrid, colorVarGrid, gradGrid, gridCols, gridRows);
+      candidates.push(...wasteCandidates);
+    }
 
     // 5b. Scan for Storm Drain Surcharges / Obstructed Culvert Inlets
-    const drainCandidates = this.extractDrainAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
-    candidates.push(...drainCandidates);
+    if (sceneType === 'road_asphalt' || sceneType === 'urban_street' || sceneType === 'drainage_structure' || !sceneType) {
+      const drainCandidates = this.extractDrainAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
+      candidates.push(...drainCandidates);
+    }
+
+    // 5c. Scan for Building Structural Fractures (Buildings & Public Structures)
+    if (sceneType === 'building_structure') {
+      const buildingCandidates = this.extractBuildingAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes, true);
+      candidates.push(...buildingCandidates);
+      const structuralCandidates = this.extractBuildingStructuralDefects(lumGrid, gradGrid, satGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
+      candidates.push(...structuralCandidates);
+    }
+
+    // 5d. Scan for Bridge Spalling & Joint Failures (Bridges & Overpasses)
+    if (sceneType === 'bridge_overpass') {
+      const bridgeCandidates = this.extractBridgeAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
+      candidates.push(...bridgeCandidates);
+    }
+
+    // 5e. Scan for Railway Track Defects & Obstructions (Railway Infrastructure)
+    if (sceneType === 'railway_track') {
+      const railCandidates = this.extractRailwayAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
+      candidates.push(...railCandidates);
+    }
+
+    // 5f. Scan for Severed / Damaged Utility Masts (Public Utility & Lighting)
+    if (sceneType === 'public_utility') {
+      const utilityCandidates = this.extractUtilityAnomalies(lumGrid, gradGrid, gridCols, gridRows, ambientLuminance, vehicleEnvelopes);
+      candidates.push(...utilityCandidates);
+    }
 
     // 6. Non-Maximum Suppression (NMS) with containment to eliminate duplicate and nested boxes
     const suppressed = this.applyNonMaximumSuppression(candidates, 0.35);
@@ -547,6 +578,603 @@ export class InfrastructureCvEngine {
                 label: `Stormwater Surcharge & Obstructed Inlet (~${evidence.contrastDelta}ΔL)`,
                 evidence,
               });
+            }
+          }
+        }
+      }
+    }
+    return detections;
+  }
+
+  /**
+   * Scan for structural masonry and facade shear fractures (Buildings & Public Structures)
+   * Distinguishes non-rectilinear jagged fractures from rectangular windows and brick mortar lines
+   */
+  private static extractBuildingAnomalies(
+    lumGrid: Float32Array,
+    gradGrid: Float32Array,
+    cols: number,
+    rows: number,
+    ambientLum: number,
+    vehicleEnvelopes: VehicleEnvelope[] = [],
+    isPureBuilding = false
+  ): RawDefectDetection[] {
+    const visited = new Uint8Array(cols * rows);
+    const detections: RawDefectDetection[] = [];
+    const maxRow = Math.floor(rows * (isPureBuilding ? 0.95 : 0.55));
+
+    // Pure building scenes require high-gradient fracture evidence to avoid false positives on architectural features
+    const seedGradThreshold = isPureBuilding ? 4.5 : 3.2;
+    const minAvgGrad = isPureBuilding ? 4.5 : 3.5;
+
+    for (let r = 4; r < maxRow; r++) {
+      for (let c = 5; c < cols - 5; c++) {
+        const idx = r * cols + c;
+        if (visited[idx]) continue;
+
+        // Fissures are concave dark troughs (valleys) surrounded on both sides by lighter masonry
+        // Windows and cornices are step edges that drop only on one side
+        const offset = 3;
+        const leftLum = c >= offset ? lumGrid[r * cols + (c - offset)] : ambientLum;
+        const rightLum = c + offset < cols ? lumGrid[r * cols + (c + offset)] : ambientLum;
+        const topLum = r >= offset ? lumGrid[(r - offset) * cols + c] : ambientLum;
+        const bottomLum = r + offset < rows ? lumGrid[(r + offset) * cols + c] : ambientLum;
+
+        const isHorizontalTrough = lumGrid[idx] < topLum - 10 && lumGrid[idx] < bottomLum - 10;
+        const isVerticalTrough = lumGrid[idx] < leftLum - 10 && lumGrid[idx] < rightLum - 10;
+        const isDiagonalTrough =
+          (lumGrid[idx] < leftLum - 8 && lumGrid[idx] < bottomLum - 8) ||
+          (lumGrid[idx] < rightLum - 8 && lumGrid[idx] < topLum - 8);
+
+        // Building structural crack seed: high-gradient fracture edge with localized dark trough
+        if (gradGrid[idx] >= seedGradThreshold && (isHorizontalTrough || isVerticalTrough || isDiagonalTrough)) {
+          // Trace connected high-gradient fracture trajectory
+          const component = this.floodFillRegion(gradGrid, visited, cols, rows, c, r, 2.5, 'greater_or_equal');
+
+          const spanW = component.maxC - component.minC + 1;
+          const spanH = component.maxR - component.minR + 1;
+          const maxDim = Math.max(spanW, spanH);
+          const minDim = Math.min(spanW, spanH);
+          const aspect = spanW / spanH;
+
+          if (component.cells.length >= 6 && maxDim >= minDim * 1.5 && component.cells.length <= cols * rows * 0.35) {
+            const centerNormX = ((component.minC + component.maxC) / (2 * cols)) * 100;
+            const centerNormY = ((component.minR + component.maxR) / (2 * rows)) * 100;
+
+            const isInsideVehicle = vehicleEnvelopes.some(
+              (env) =>
+                centerNormX >= env.minX &&
+                centerNormX <= env.maxX &&
+                centerNormY >= env.minY &&
+                centerNormY <= env.maxY
+            );
+            if (isInsideVehicle) continue;
+
+            let gradSum = 0;
+            let lumSum = 0;
+            for (const cellIdx of component.cells) {
+              gradSum += gradGrid[cellIdx];
+              lumSum += lumGrid[cellIdx];
+            }
+            const avgGrad = gradSum / component.cells.length;
+            const avgCompLum = lumSum / component.cells.length;
+
+            if (avgGrad >= minAvgGrad) {
+              const coveragePct = (component.cells.length / (cols * rows)) * 100;
+              const contrastDelta = ambientLum - avgCompLum;
+              const rawConfidence = Math.min(1.0, 0.45 + (contrastDelta / 60) * 0.3 + (avgGrad / 12) * 0.25);
+              const calibratedPct = Math.round(Math.min(94, Math.max(68, (0.50 + 0.50 * rawConfidence) * 100)));
+
+              const x = Math.round((component.minC / cols) * 100);
+              const y = Math.round((component.minR / rows) * 100);
+              const width = Math.round((spanW / cols) * 100);
+              const height = Math.round((spanH / rows) * 100);
+
+              const evidence: DefectEvidence = {
+                rawScore: rawConfidence,
+                calibratedConfidence: calibratedPct,
+                areaPixels: component.cells.length,
+                frameCoveragePct: Number(coveragePct.toFixed(1)),
+                contrastDelta: Math.round(contrastDelta),
+                edgeDensity: Number(avgGrad.toFixed(1)),
+                aspectRatio: Number(aspect.toFixed(2)),
+                boundingBox: { x, y, width, height },
+                pixelBox: { minX: component.minC, minY: component.minR, maxX: component.maxC, maxY: component.maxR },
+              };
+
+              detections.push({
+                type: 'structural_crack',
+                category: 'building_damage',
+                label: `Structural Masonry Crack (${evidence.aspectRatio > 1.2 ? 'Diagonal/Transverse' : 'Vertical'})`,
+                evidence,
+              });
+            }
+          }
+        }
+      }
+    }
+    return detections;
+  }
+
+  /**
+   * Scan for catastrophic structural building defects:
+   * 1. Structural Wall Collapse & Envelope Breaches (deep dark interior void cavity with fractured concrete borders)
+   * 2. Volumetric Rubble & Concrete Debris Heaps (high-gradient neutral concrete fragments accumulating at base)
+   */
+  private static extractBuildingStructuralDefects(
+    lumGrid: Float32Array,
+    gradGrid: Float32Array,
+    satGrid: Float32Array,
+    cols: number,
+    rows: number,
+    ambientLum: number,
+    vehicleEnvelopes: VehicleEnvelope[] = []
+  ): RawDefectDetection[] {
+    const detections: RawDefectDetection[] = [];
+
+    // 1. Scan for Structural Wall Collapse Breaches (large dark cavity with fractured perimeter)
+    const collapseVisited = new Uint8Array(cols * rows);
+    for (let r = 1; r < rows - 2; r++) {
+      for (let c = 1; c < cols - 1; c++) {
+        const idx = r * cols + c;
+        if (collapseVisited[idx]) continue;
+
+        const l = lumGrid[idx];
+        // Dark cavity in elevated facade
+        if (l <= 75 && (ambientLum - l) >= 20) {
+          // Flood fill void component
+          const compCells: number[] = [];
+          const q = [idx];
+          collapseVisited[idx] = 1;
+          let cMinR = r, cMaxR = r, cMinC = c, cMaxC = c;
+          let sumL = 0;
+
+          while (q.length > 0) {
+            const curr = q.pop()!;
+            compCells.push(curr);
+            const cr = Math.floor(curr / cols);
+            const cc = curr % cols;
+            sumL += lumGrid[curr];
+            if (cr < cMinR) cMinR = cr;
+            if (cr > cMaxR) cMaxR = cr;
+            if (cc < cMinC) cMinC = cc;
+            if (cc > cMaxC) cMaxC = cc;
+
+            const neighbors = [
+              cr > 0 ? (cr - 1) * cols + cc : -1,
+              cr < rows - 1 ? (cr + 1) * cols + cc : -1,
+              cc > 0 ? cr * cols + (cc - 1) : -1,
+              cc < cols - 1 ? cr * cols + (cc + 1) : -1,
+            ];
+
+            for (const n of neighbors) {
+              if (n >= 0 && !collapseVisited[n]) {
+                if (lumGrid[n] <= 85) {
+                  collapseVisited[n] = 1;
+                  q.push(n);
+                }
+              }
+            }
+          }
+
+          const spanW = cMaxC - cMinC + 1;
+          const spanH = cMaxR - cMinR + 1;
+          const area = compCells.length;
+          const totalGridCells = cols * rows;
+          const solidity = area / (spanW * spanH);
+
+          // Wall collapse requires substantial scale (>= 25 cells, span >= 6x6, solidity >= 0.30)
+          // Elongated shear crack trajectories have solidity < 0.15
+          if (area >= 25 && spanW >= 6 && spanH >= 6 && solidity >= 0.30) {
+            const centerNormX = ((cMinC + cMaxC) / (2 * cols)) * 100;
+            const centerNormY = ((cMinR + cMaxR) / (2 * rows)) * 100;
+            const isInsideVehicle = vehicleEnvelopes.some(
+              (env) =>
+                centerNormX >= env.minX &&
+                centerNormX <= env.maxX &&
+                centerNormY >= env.minY &&
+                centerNormY <= env.maxY
+            );
+            if (isInsideVehicle) continue;
+
+            let gradSum = 0;
+            for (const cellIdx of compCells) {
+              gradSum += gradGrid[cellIdx];
+            }
+            const avgGrad = gradSum / compCells.length;
+            const avgVoidL = sumL / compCells.length;
+            const contrastDelta = ambientLum - avgVoidL;
+
+            // Check if it has fractured perimeter
+            if (contrastDelta >= 22 && avgGrad >= 2.5) {
+              const coveragePct = (area / totalGridCells) * 100;
+              const rawConfidence = Math.min(1.0, 0.50 + (contrastDelta / 80) * 0.3 + (avgGrad / 15) * 0.2);
+              const calibratedPct = Math.round(Math.min(96, Math.max(75, (0.50 + 0.50 * rawConfidence) * 100)));
+
+              const x = Math.round((cMinC / cols) * 100);
+              const y = Math.round((cMinR / rows) * 100);
+              const width = Math.round((spanW / cols) * 100);
+              const height = Math.round((spanH / rows) * 100);
+
+              const evidence: DefectEvidence = {
+                rawScore: rawConfidence,
+                calibratedConfidence: calibratedPct,
+                areaPixels: area,
+                frameCoveragePct: Number(coveragePct.toFixed(1)),
+                contrastDelta: Math.round(contrastDelta),
+                edgeDensity: Number(avgGrad.toFixed(1)),
+                aspectRatio: Number((spanW / spanH).toFixed(2)),
+                boundingBox: { x, y, width, height },
+                pixelBox: { minX: cMinC, minY: cMinR, maxX: cMaxC, maxY: cMaxR },
+              };
+
+              detections.push({
+                type: 'building_collapse',
+                category: 'building_damage',
+                label: `Structural Wall Collapse & Breach (~${evidence.contrastDelta}ΔL)`,
+                evidence,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Scan for Volumetric Rubble & Concrete Debris Heaps at building base
+    const rubbleVisited = new Uint8Array(cols * rows);
+    const minRubbleRow = Math.floor(rows * 0.65);
+    for (let r = minRubbleRow; r < rows; r++) {
+      for (let c = 1; c < cols - 1; c++) {
+        const idx = r * cols + c;
+        if (rubbleVisited[idx]) continue;
+
+        // Rubble seed: high gradient, neutral saturation, and concrete debris luminance (lum >= 80)
+        if (gradGrid[idx] >= 4.0 && satGrid[idx] <= 0.25 && lumGrid[idx] >= 80) {
+          const compCells: number[] = [];
+          const q = [idx];
+          rubbleVisited[idx] = 1;
+          let cMinR = r, cMaxR = r, cMinC = c, cMaxC = c;
+          let gradSum = 0, lumSum = 0;
+
+          while (q.length > 0) {
+            const curr = q.pop()!;
+            compCells.push(curr);
+            const cr = Math.floor(curr / cols);
+            const cc = curr % cols;
+            gradSum += gradGrid[curr];
+            lumSum += lumGrid[curr];
+            if (cr < cMinR) cMinR = cr;
+            if (cr > cMaxR) cMaxR = cr;
+            if (cc < cMinC) cMinC = cc;
+            if (cc > cMaxC) cMaxC = cc;
+
+            const neighbors = [
+              cr > 0 ? (cr - 1) * cols + cc : -1,
+              cr < rows - 1 ? (cr + 1) * cols + cc : -1,
+              cc > 0 ? cr * cols + (cc - 1) : -1,
+              cc < cols - 1 ? cr * cols + (cc + 1) : -1,
+            ];
+
+            for (const n of neighbors) {
+              if (n >= 0 && !rubbleVisited[n]) {
+                if (gradGrid[n] >= 2.6 && satGrid[n] <= 0.25) {
+                  rubbleVisited[n] = 1;
+                  q.push(n);
+                }
+              }
+            }
+          }
+
+          const spanW = cMaxC - cMinC + 1;
+          const spanH = cMaxR - cMinR + 1;
+          const area = compCells.length;
+          const totalGridCells = cols * rows;
+          const aspect = spanW / spanH;
+          const solidity = area / (spanW * spanH);
+          const centerIdx = Math.floor((cMinR + cMaxR) / 2) * cols + Math.floor((cMinC + cMaxC) / 2);
+          const isCenterFilled = rubbleVisited[centerIdx] === 1;
+
+          // Volumetric debris heap requires dense cluster at building base (area >= 20, solidity >= 0.35, aspect between 0.4 and 2.5, solid center)
+          // Hollow rectangular window outlines have empty centers (isCenterFilled === false)
+          if (area >= 20 && spanW >= 5 && spanH >= 5 && aspect >= 0.4 && aspect <= 2.5 && solidity >= 0.35 && isCenterFilled) {
+            const centerNormX = ((cMinC + cMaxC) / (2 * cols)) * 100;
+            const centerNormY = ((cMinR + cMaxR) / (2 * rows)) * 100;
+            const isInsideVehicle = vehicleEnvelopes.some(
+              (env) =>
+                centerNormX >= env.minX &&
+                centerNormX <= env.maxX &&
+                centerNormY >= env.minY &&
+                centerNormY <= env.maxY
+            );
+            if (isInsideVehicle) continue;
+
+            const avgGrad = gradSum / compCells.length;
+            const avgLum = lumSum / compCells.length;
+            const contrastDelta = Math.abs(ambientLum - avgLum);
+            const coveragePct = (area / totalGridCells) * 100;
+            const rawConfidence = Math.min(1.0, 0.45 + (avgGrad / 12) * 0.35 + (coveragePct / 25) * 0.2);
+            const calibratedPct = Math.round(Math.min(94, Math.max(70, (0.50 + 0.50 * rawConfidence) * 100)));
+
+            const x = Math.round((cMinC / cols) * 100);
+            const y = Math.round((cMinR / rows) * 100);
+            const width = Math.round((spanW / cols) * 100);
+            const height = Math.round((spanH / rows) * 100);
+
+            const evidence: DefectEvidence = {
+              rawScore: rawConfidence,
+              calibratedConfidence: calibratedPct,
+              areaPixels: area,
+              frameCoveragePct: Number(coveragePct.toFixed(1)),
+              contrastDelta: Math.round(contrastDelta),
+              edgeDensity: Number(avgGrad.toFixed(1)),
+              aspectRatio: Number((spanW / spanH).toFixed(2)),
+              boundingBox: { x, y, width, height },
+              pixelBox: { minX: cMinC, minY: cMinR, maxX: cMaxC, maxY: cMaxR },
+            };
+
+            detections.push({
+              type: 'rubble_debris',
+              category: 'building_damage',
+              label: `Rubble & Concrete Debris Heap (~${evidence.edgeDensity} edge density)`,
+              evidence,
+            });
+          }
+        }
+      }
+    }
+
+    return detections;
+  }
+
+  /**
+   * Scan for concrete spalling, exposed rebar, and joint failure (Bridges & Overpasses)
+   */
+  private static extractBridgeAnomalies(
+    lumGrid: Float32Array,
+    gradGrid: Float32Array,
+    cols: number,
+    rows: number,
+    ambientLum: number,
+    vehicleEnvelopes: VehicleEnvelope[] = []
+  ): RawDefectDetection[] {
+    const visited = new Uint8Array(cols * rows);
+    const detections: RawDefectDetection[] = [];
+    const minRow = Math.floor(rows * 0.15);
+    const maxRow = Math.floor(rows * 0.90);
+
+    for (let r = minRow; r < maxRow; r++) {
+      for (let c = 5; c < cols - 5; c++) {
+        const idx = r * cols + c;
+        if (visited[idx]) continue;
+
+        if (lumGrid[idx] < Math.max(15, ambientLum - 20) && gradGrid[idx] >= 3.4) {
+          const component = this.floodFillRegion(lumGrid, visited, cols, rows, c, r, Math.max(15, ambientLum - 15));
+
+          if (component.cells.length >= 8 && component.cells.length <= cols * rows * 0.35) {
+            const centerNormX = ((component.minC + component.maxC) / (2 * cols)) * 100;
+            const centerNormY = ((component.minR + component.maxR) / (2 * rows)) * 100;
+
+            const isInsideVehicle = vehicleEnvelopes.some(
+              (env) =>
+                centerNormX >= env.minX &&
+                centerNormX <= env.maxX &&
+                centerNormY >= env.minY &&
+                centerNormY <= env.maxY
+            );
+            if (isInsideVehicle) continue;
+
+            const spanW = component.maxC - component.minC + 1;
+            const spanH = component.maxR - component.minR + 1;
+            const aspect = spanW / spanH;
+
+            if (spanW >= cols * 0.60 && spanH <= 4) {
+              continue; // Normal engineered expansion joint
+            }
+
+            let gradSum = 0;
+            for (const cellIdx of component.cells) {
+              gradSum += gradGrid[cellIdx];
+            }
+            const avgGrad = gradSum / component.cells.length;
+
+            if (avgGrad >= 3.5 && aspect >= 0.35 && aspect <= 2.8 && spanW >= 4 && spanH >= 4) {
+              const coveragePct = (component.cells.length / (cols * rows)) * 100;
+              const contrastDelta = ambientLum - component.avgL;
+              const rawConfidence = Math.min(1.0, 0.45 + (contrastDelta / 60) * 0.3 + (avgGrad / 12) * 0.25);
+              const calibratedPct = Math.round(Math.min(95, Math.max(68, (0.50 + 0.50 * rawConfidence) * 100)));
+
+              const x = Math.round((component.minC / cols) * 100);
+              const y = Math.round((component.minR / rows) * 100);
+              const width = Math.round((spanW / cols) * 100);
+              const height = Math.round((spanH / rows) * 100);
+
+              const evidence: DefectEvidence = {
+                rawScore: rawConfidence,
+                calibratedConfidence: calibratedPct,
+                areaPixels: component.cells.length,
+                frameCoveragePct: Number(coveragePct.toFixed(1)),
+                contrastDelta: Math.round(contrastDelta),
+                edgeDensity: Number(avgGrad.toFixed(1)),
+                aspectRatio: Number((spanW / spanH).toFixed(2)),
+                boundingBox: { x, y, width, height },
+                pixelBox: { minX: component.minC, minY: component.minR, maxX: component.maxC, maxY: component.maxR },
+              };
+
+              detections.push({
+                type: 'spalling_concrete',
+                category: 'bridge_damage',
+                label: `Concrete Spalling & Exposed Rebar (~${evidence.contrastDelta}ΔL)`,
+                evidence,
+              });
+            }
+          }
+        }
+      }
+    }
+    return detections;
+  }
+
+  /**
+   * Scan for rail head fractures and foreign track obstructions (Railway Infrastructure)
+   */
+  private static extractRailwayAnomalies(
+    lumGrid: Float32Array,
+    gradGrid: Float32Array,
+    cols: number,
+    rows: number,
+    ambientLum: number,
+    vehicleEnvelopes: VehicleEnvelope[] = []
+  ): RawDefectDetection[] {
+    const visited = new Uint8Array(cols * rows);
+    const detections: RawDefectDetection[] = [];
+    const minRow = Math.floor(rows * 0.20);
+
+    for (let r = minRow; r < rows - 4; r++) {
+      for (let c = 5; c < cols - 5; c++) {
+        const idx = r * cols + c;
+        if (visited[idx]) continue;
+
+        // Rail fracture / void seed: localized severe depression breaking continuous steel rail
+        if (lumGrid[idx] <= Math.min(52, ambientLum - 35) && gradGrid[idx] >= 3.0) {
+          const component = this.floodFillRegion(lumGrid, visited, cols, rows, c, r, Math.min(58, ambientLum - 30));
+
+          if (component.cells.length >= 5 && component.cells.length <= cols * rows * 0.25) {
+            const centerNormX = ((component.minC + component.maxC) / (2 * cols)) * 100;
+            const centerNormY = ((component.minR + component.maxR) / (2 * rows)) * 100;
+
+            const isInsideVehicle = vehicleEnvelopes.some(
+              (env) =>
+                centerNormX >= env.minX &&
+                centerNormX <= env.maxX &&
+                centerNormY >= env.minY &&
+                centerNormY <= env.maxY
+            );
+            if (isInsideVehicle) continue;
+
+            const spanW = component.maxC - component.minC + 1;
+            const spanH = component.maxR - component.minR + 1;
+            const aspect = spanW / spanH;
+
+            let gradSum = 0;
+            for (const cellIdx of component.cells) {
+              gradSum += gradGrid[cellIdx];
+            }
+            const avgGrad = gradSum / component.cells.length;
+
+            if (avgGrad >= 3.8 && aspect >= 0.35 && aspect <= 3.0 && spanW >= 3 && spanH >= 3) {
+              const coveragePct = (component.cells.length / (cols * rows)) * 100;
+              const contrastDelta = ambientLum - component.avgL;
+              const rawConfidence = Math.min(1.0, 0.48 + (contrastDelta / 60) * 0.3 + (avgGrad / 12) * 0.22);
+              const calibratedPct = Math.round(Math.min(95, Math.max(70, (0.50 + 0.50 * rawConfidence) * 100)));
+
+              const x = Math.round((component.minC / cols) * 100);
+              const y = Math.round((component.minR / rows) * 100);
+              const width = Math.round((spanW / cols) * 100);
+              const height = Math.round((spanH / rows) * 100);
+
+              const evidence: DefectEvidence = {
+                rawScore: rawConfidence,
+                calibratedConfidence: calibratedPct,
+                areaPixels: component.cells.length,
+                frameCoveragePct: Number(coveragePct.toFixed(1)),
+                contrastDelta: Math.round(contrastDelta),
+                edgeDensity: Number(avgGrad.toFixed(1)),
+                aspectRatio: Number((spanW / spanH).toFixed(2)),
+                boundingBox: { x, y, width, height },
+                pixelBox: { minX: component.minC, minY: component.minR, maxX: component.maxC, maxY: component.maxR },
+              };
+
+              detections.push({
+                type: 'railway_defect',
+                category: 'railway_damage',
+                label: `Defective Rail Head Fracture & Track Obstruction (~${evidence.contrastDelta}ΔL)`,
+                evidence,
+              });
+            }
+          }
+        }
+      }
+    }
+    return detections;
+  }
+
+  /**
+   * Scan for severed or collapsed utility masts laying across the roadway corridor
+   */
+  private static extractUtilityAnomalies(
+    lumGrid: Float32Array,
+    gradGrid: Float32Array,
+    cols: number,
+    rows: number,
+    ambientLum: number,
+    vehicleEnvelopes: VehicleEnvelope[] = []
+  ): RawDefectDetection[] {
+    const visited = new Uint8Array(cols * rows);
+    const detections: RawDefectDetection[] = [];
+    const minRow = Math.floor(rows * 0.25);
+
+    for (let r = minRow; r < rows - 4; r++) {
+      for (let c = 5; c < cols - 5; c++) {
+        const idx = r * cols + c;
+        if (visited[idx]) continue;
+
+        if (lumGrid[idx] < Math.max(15, ambientLum - 18) && gradGrid[idx] >= 3.8) {
+          const component = this.floodFillRegion(lumGrid, visited, cols, rows, c, r, Math.max(15, ambientLum - 14));
+
+          if (component.cells.length >= 8 && component.cells.length <= cols * rows * 0.35) {
+            const centerNormX = ((component.minC + component.maxC) / (2 * cols)) * 100;
+            const centerNormY = ((component.minR + component.maxR) / (2 * rows)) * 100;
+
+            const isInsideVehicle = vehicleEnvelopes.some(
+              (env) =>
+                centerNormX >= env.minX &&
+                centerNormX <= env.maxX &&
+                centerNormY >= env.minY &&
+                centerNormY <= env.maxY
+            );
+            if (isInsideVehicle) continue;
+
+            const spanW = component.maxC - component.minC + 1;
+            const spanH = component.maxR - component.minR + 1;
+            const aspect = spanW / spanH;
+
+            if (aspect >= 2.5 || aspect <= 0.35) {
+              let gradSum = 0;
+              for (const cellIdx of component.cells) {
+                gradSum += gradGrid[cellIdx];
+              }
+              const avgGrad = gradSum / component.cells.length;
+
+              if (avgGrad >= 3.8) {
+                const coveragePct = (component.cells.length / (cols * rows)) * 100;
+                const contrastDelta = ambientLum - component.avgL;
+                const rawConfidence = Math.min(1.0, 0.45 + (contrastDelta / 60) * 0.3 + (avgGrad / 12) * 0.25);
+                const calibratedPct = Math.round(Math.min(94, Math.max(68, (0.50 + 0.50 * rawConfidence) * 100)));
+
+                const x = Math.round((component.minC / cols) * 100);
+                const y = Math.round((component.minR / rows) * 100);
+                const width = Math.round((spanW / cols) * 100);
+                const height = Math.round((spanH / rows) * 100);
+
+                const evidence: DefectEvidence = {
+                  rawScore: rawConfidence,
+                  calibratedConfidence: calibratedPct,
+                  areaPixels: component.cells.length,
+                  frameCoveragePct: Number(coveragePct.toFixed(1)),
+                  contrastDelta: Math.round(contrastDelta),
+                  edgeDensity: Number(avgGrad.toFixed(1)),
+                  aspectRatio: Number((spanW / spanH).toFixed(2)),
+                  boundingBox: { x, y, width, height },
+                  pixelBox: { minX: component.minC, minY: component.minR, maxX: component.maxC, maxY: component.maxR },
+                };
+
+                detections.push({
+                  type: 'utility_mast_damage',
+                  category: 'public_utility',
+                  label: `Severed / Damaged Utility Mast on Road Corridor (~${evidence.contrastDelta}ΔL)`,
+                  evidence,
+                });
+              }
             }
           }
         }

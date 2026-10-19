@@ -1,4 +1,5 @@
-import { ImagePixelBuffer, ImageValidationMetrics, ImageValidationResult, SceneClassification } from './types';
+import { ImagePixelBuffer, ImageValidationMetrics, ImageValidationResult, SceneClassification, SceneUnderstandingResult } from './types';
+import { UniversalSceneUnderstandingEngine } from './sceneUnderstandingEngine';
 
 /**
  * Strict Image Validation Pipeline
@@ -122,30 +123,33 @@ export class ImageValidationPipeline {
     }
 
     // 4. Infrastructure Relevance & Scene Understanding
-    const sceneAnalysis = this.classifyScene(buffer, metrics);
+    const sceneUnderstanding = UniversalSceneUnderstandingEngine.analyze(buffer);
+    const sceneAnalysis = this.classifyScene(buffer, metrics, sceneUnderstanding);
 
-    if (sceneAnalysis.sceneType === 'non_infrastructure') {
+    if (sceneAnalysis.sceneType === 'non_infrastructure' || !sceneUnderstanding.containsInfrastructure) {
       return {
         isValid: false,
-        operationalState: 'UNSUPPORTED_IMAGE',
+        operationalState: 'NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED',
         scenePresence: 'infrastructure_absent',
         status: 'rejected',
         sceneType: 'non_infrastructure',
         rejectionReason: 'non_infrastructure',
-        rejectionMessage: sceneAnalysis.reason || 'Image does not contain outdoor road, pavement, drainage, or street infrastructure.',
+        rejectionMessage: sceneAnalysis.reason || sceneUnderstanding.explanation || 'Image does not contain outdoor road, building, bridge, railway, pavement, or municipal civil infrastructure.',
         metrics,
         sceneConfidence: sceneAnalysis.confidence,
+        sceneUnderstanding,
       };
     }
 
     return {
       isValid: true,
-      operationalState: 'NO_DAMAGE_DETECTED',
+      operationalState: 'NO_DAMAGE_DETECTED_WITHIN_SUPPORTED_SCOPE',
       scenePresence: 'infrastructure_present',
       status: 'valid_infrastructure',
       sceneType: sceneAnalysis.sceneType,
       metrics,
       sceneConfidence: sceneAnalysis.confidence,
+      sceneUnderstanding,
     };
   }
 
@@ -278,11 +282,12 @@ export class ImageValidationPipeline {
   }
 
   /**
-   * Scene Classification based on spectral, spatial, and textural distributions
+   * Scene Classification based on spectral, spatial, textural distributions, and scene understanding
    */
   private static classifyScene(
     buffer: ImagePixelBuffer,
-    metrics: ImageValidationMetrics
+    metrics: ImageValidationMetrics,
+    sceneUnderstanding: SceneUnderstandingResult
   ): { sceneType: SceneClassification; confidence: number; reason?: string } {
     const { width, height, data } = buffer;
     const totalPixels = width * height;
@@ -315,8 +320,7 @@ export class ImageValidationPipeline {
           topPixels++;
         }
 
-        // Neutral asphalt / concrete chromatic signature:
-        // Absolute difference between color channels is low (|R-G| < 24 and |G-B| < 24)
+        // Neutral asphalt / concrete chromatic signature
         const isNeutral = Math.abs(r - g) < 26 && Math.abs(g - b) < 26 && Math.abs(r - b) < 26;
         if (isNeutral && lum > 25 && lum < 225) {
           roadColorPixelCount++;
@@ -339,7 +343,7 @@ export class ImageValidationPipeline {
     const skyRatio = skyPixelCount / totalPixels;
 
     // Non-infrastructure: Pure nature/vegetation (e.g. dense forest, green lawn without road)
-    if (vegetationRatio > 0.75 && roadRatio < 0.10) {
+    if (vegetationRatio > 0.75 && roadRatio < 0.10 && sceneUnderstanding.primaryCategory !== 'building_damage' && sceneUnderstanding.primaryCategory !== 'bridge_damage') {
       return {
         sceneType: 'non_infrastructure',
         confidence: 91.0,
@@ -348,16 +352,73 @@ export class ImageValidationPipeline {
     }
 
     // Non-infrastructure: Indoor room or living space
-    // Characterized by warm tungsten dominance (R >> B, high saturation) with low neutral asphalt content
-    if (metrics.saturationMean > 0.45 && roadRatio < 0.12 && !metrics.isGrayscaleOrNeutral) {
+    if (metrics.saturationMean > 0.45 && roadRatio < 0.12 && !sceneUnderstanding.containsInfrastructure && !metrics.isGrayscaleOrNeutral) {
       return {
         sceneType: 'non_infrastructure',
         confidence: 88.0,
-        reason: 'Image contains domestic or indoor environment (high saturation/indoor palette) lacking roadway or civil infrastructure.',
+        reason: 'Image contains domestic or indoor environment (high saturation/indoor palette) lacking civil infrastructure.',
       };
     }
 
-    // Asphalt Road Scene
+    // If scene understanding identified infrastructure, map category
+    if (sceneUnderstanding.containsInfrastructure) {
+      if (sceneUnderstanding.primaryCategory === 'building_damage') {
+        return {
+          sceneType: 'building_structure',
+          confidence: 92.0,
+        };
+      }
+      if (sceneUnderstanding.primaryCategory === 'bridge_damage') {
+        return {
+          sceneType: 'bridge_overpass',
+          confidence: 90.0,
+        };
+      }
+      if (sceneUnderstanding.primaryCategory === 'railway_damage') {
+        return {
+          sceneType: 'railway_track',
+          confidence: 91.0,
+        };
+      }
+      if (sceneUnderstanding.primaryCategory === 'sidewalk_hazard') {
+        return {
+          sceneType: 'concrete_sidewalk',
+          confidence: 88.0,
+        };
+      }
+      if (sceneUnderstanding.primaryCategory === 'drainage_overflow') {
+        return {
+          sceneType: 'drainage_structure',
+          confidence: 85.0,
+        };
+      }
+      if (sceneUnderstanding.primaryCategory === 'lighting_failure') {
+        return {
+          sceneType: 'lighting_infrastructure',
+          confidence: 85.0,
+        };
+      }
+      if (sceneUnderstanding.primaryCategory === 'public_utility') {
+        return {
+          sceneType: 'public_utility',
+          confidence: 85.0,
+        };
+      }
+      if (sceneUnderstanding.primaryCategory === 'road_damage') {
+        if (roadRatio >= 0.35 && metrics.edgeEnergy >= 2.0 && skyRatio < 0.05) {
+          return {
+            sceneType: 'road_asphalt',
+            confidence: Math.min(98, Math.round(50 + roadRatio * 50)),
+          };
+        }
+        return {
+          sceneType: 'urban_street',
+          confidence: 85.0,
+        };
+      }
+    }
+
+    // Asphalt Road Scene fallback
     if (roadRatio >= 0.35 && metrics.edgeEnergy >= 2.0) {
       return {
         sceneType: 'road_asphalt',
@@ -365,7 +426,7 @@ export class ImageValidationPipeline {
       };
     }
 
-    // Concrete Sidewalk / Pavement Scene
+    // Concrete Sidewalk / Pavement Scene fallback
     if (metrics.isGrayscaleOrNeutral && metrics.meanLuminance >= 90 && metrics.meanLuminance <= 210 && metrics.edgeEnergy >= 2.5) {
       return {
         sceneType: 'concrete_sidewalk',
@@ -373,7 +434,7 @@ export class ImageValidationPipeline {
       };
     }
 
-    // Urban Street Scene (Mixed road, sky, structures)
+    // Urban Street Scene fallback
     if (roadRatio >= 0.20 || (skyRatio > 0.05 && roadRatio >= 0.15)) {
       return {
         sceneType: 'urban_street',
@@ -381,7 +442,7 @@ export class ImageValidationPipeline {
       };
     }
 
-    // Drainage or civil concrete structure
+    // Drainage or civil concrete structure fallback
     if (metrics.rmsContrast >= 25 && metrics.dynamicRange >= 100 && metrics.edgeEnergy >= 3.0) {
       return {
         sceneType: 'drainage_structure',
@@ -400,7 +461,7 @@ export class ImageValidationPipeline {
     return {
       sceneType: 'non_infrastructure',
       confidence: 78.0,
-      reason: 'Image does not exhibit recognizable road, concrete, or public right-of-way infrastructure patterns.',
+      reason: sceneUnderstanding.explanation || 'Image does not exhibit recognizable civil or public right-of-way infrastructure patterns.',
     };
   }
 

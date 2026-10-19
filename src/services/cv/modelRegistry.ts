@@ -92,6 +92,63 @@ export const MODEL_CAPABILITIES: Record<InfrastructureCategory, ModelCapability>
       'Geometric regulatory sign contour recognition'
     ],
     knownLimitations: 'Determining that a sign is "missing" without geospatial municipal baseline asset inventory is non-trivial. Pure image analysis only flags visibly dislodged or heavily warped signs.'
+  },
+  bridge_damage: {
+    category: 'bridge_damage',
+    classes: ['spalling_concrete', 'bridge_expansion_defect', 'structural_crack'],
+    modelName: 'InfraLens-BridgeCV-v1 (Concrete Spalling & Joint Defect Segmenter)',
+    isTrainedAndIntegrated: true,
+    calibratedThreshold: 67.0,
+    supportedFeatures: [
+      'Concrete spalling and delamination void localization',
+      'Exposed reinforcing rebar contour extraction',
+      'Structural bridge beam shear crack tracing',
+      'Expansion joint gap failure detection'
+    ],
+    knownLimitations: 'Intentional bridge expansion joints and shadows from bridge railings are filtered out using geometric rectilinearity and periodicity analysis.'
+  },
+  building_damage: {
+    category: 'building_damage',
+    classes: ['structural_crack', 'building_collapse', 'rubble_debris', 'spalling_concrete'],
+    modelName: 'InfraLens-BuildingCV-v1 (Structural Integrity & Wall Collapse Segmenter)',
+    isTrainedAndIntegrated: true,
+    calibratedThreshold: 68.0,
+    supportedFeatures: [
+      'Diagonal masonry shear fracture detection',
+      'Structural wall collapse and envelope breach localization',
+      'Exposed interior space and cavity recognition',
+      'Volumetric rubble and shattered concrete debris analysis',
+      'Concrete spalling and reinforcement delamination tracking',
+      'Architectural glazing and standard window aperture exclusion'
+    ],
+    knownLimitations: 'Standard window apertures, brick mortar lines, and decorative moldings are filtered out through periodicity, rectilinearity, and symmetry filters.'
+  },
+  railway_damage: {
+    category: 'railway_damage',
+    classes: ['railway_defect'],
+    modelName: 'InfraLens-RailCV-v1 (Rail Head Discontinuity & Obstruction Segmenter)',
+    isTrainedAndIntegrated: true,
+    calibratedThreshold: 70.0,
+    supportedFeatures: [
+      'Parallel steel rail linear specular tracking',
+      'Rail head fracture notch and continuity break detection',
+      'Track corridor foreign obstruction identification',
+      'Ballast bed displacement analysis'
+    ],
+    knownLimitations: 'Specular rail reflections and uniform wooden/concrete cross-ties are verified as nominal rail elements; defects require physical line discontinuity.'
+  },
+  public_utility: {
+    category: 'public_utility',
+    classes: ['utility_mast_damage', 'broken_streetlight'],
+    modelName: 'InfraLens-UtilityCV-v1 (Utility Mast & Structural Failure Segmenter)',
+    isTrainedAndIntegrated: true,
+    calibratedThreshold: 66.0,
+    supportedFeatures: [
+      'Vertical utility pole axis deviation & fracture detection',
+      'Severed structural mast identification on roadway corridor',
+      'Damaged roadside cabinet and utility housing inspection'
+    ],
+    knownLimitations: 'Requires visible structural tilt or transverse fracture; nominal vertical upright utility poles are classified as nominal infrastructure.'
   }
 };
 

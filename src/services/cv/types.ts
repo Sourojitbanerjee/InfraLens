@@ -8,16 +8,26 @@ export interface ImagePixelBuffer {
 }
 
 /**
- * Operational Decision States (Phase 4 Required States)
+ * Universal Operational Decision States (8 Canonical Outcomes)
  * Enforces strict decision policies with zero manufactured positive outcomes.
  */
+export type UniversalOperationalDecisionState =
+  | 'INFRASTRUCTURE_DAMAGE_VERIFIED'
+  | 'NO_DAMAGE_DETECTED_WITHIN_SUPPORTED_SCOPE'
+  | 'INFRASTRUCTURE_PRESENT_BUT_UNCERTAIN'
+  | 'NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED'
+  | 'IMAGE_QUALITY_INSUFFICIENT'
+  | 'UNSUPPORTED_INFRASTRUCTURE_CATEGORY'
+  | 'MODEL_UNAVAILABLE'
+  | 'INFERENCE_FAILED';
+
 export type OperationalDecisionState =
-  | 'DAMAGE_VERIFIED'             // Supported defect passed strict multi-stage verification
-  | 'NO_DAMAGE_DETECTED'           // Suitable infrastructure scene, no actionable defect
-  | 'UNCERTAIN'                    // Evidence present but ambiguous or partially obscured
-  | 'UNSUPPORTED_IMAGE'            // Non-infrastructure, indoor, animals, food, documents
-  | 'IMAGE_QUALITY_INSUFFICIENT'   // Severe blur, pitch black, overexposed, corrupt
-  | 'ANALYSIS_FAILED';             // Engine/Backend failure or unreachable network
+  | UniversalOperationalDecisionState
+  | 'DAMAGE_VERIFIED'             // Alias for INFRASTRUCTURE_DAMAGE_VERIFIED
+  | 'NO_DAMAGE_DETECTED'           // Alias for NO_DAMAGE_DETECTED_WITHIN_SUPPORTED_SCOPE
+  | 'UNCERTAIN'                    // Alias for INFRASTRUCTURE_PRESENT_BUT_UNCERTAIN
+  | 'UNSUPPORTED_IMAGE'            // Alias for NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED
+  | 'ANALYSIS_FAILED';             // Alias for INFERENCE_FAILED
 
 /**
  * Scene Taxonomy separating infrastructure presence from defects (Phase 2 Stage B)
@@ -42,13 +52,52 @@ export type ImageRejectionReason =
 
 export type SceneClassification =
   | 'road_asphalt'
+  | 'bridge_overpass'
+  | 'building_structure'
+  | 'railway_track'
   | 'concrete_sidewalk'
   | 'urban_street'
   | 'drainage_structure'
   | 'utility_corridor'
+  | 'lighting_infrastructure'
+  | 'traffic_infrastructure'
+  | 'public_utility'
   | 'non_infrastructure'
   | 'blank'
   | 'ambiguous';
+
+export interface SceneElement {
+  label: string;
+  confidence: number;
+  coveragePct: number;
+  boundingBox?: { x: number; y: number; width: number; height: number };
+}
+
+export interface SceneUnderstandingResult {
+  visibleElements: SceneElement[];
+  containsInfrastructure: boolean;
+  detectedCategories: InfrastructureCategory[];
+  primaryCategory: InfrastructureCategory | 'none';
+  candidateDefectRegions: Array<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    category: InfrastructureCategory;
+    evidenceContrast: number;
+    evidenceGradient: number;
+  }>;
+  hasSufficientVisualEvidence: boolean;
+  appropriateModels: string[];
+  distractingObjects: {
+    hasVehicles: boolean;
+    hasPedestrians: boolean;
+    hasWaterReflections: boolean;
+    hasHeavyShadows: boolean;
+    vehicleEnvelopes: Array<{ minX: number; minY: number; maxX: number; maxY: number; type: string }>;
+  };
+  explanation: string;
+}
 
 export interface ImageValidationMetrics {
   meanLuminance: number;       // 0 - 255
@@ -72,12 +121,13 @@ export interface ImageValidationResult {
   rejectionMessage?: string;
   metrics: ImageValidationMetrics;
   sceneConfidence: number;      // 0 - 100%
+  sceneUnderstanding?: SceneUnderstandingResult;
 }
 
 /**
- * Multi-Stage Crop Verification Schema (Phase 3)
+ * Multi-Stage Crop Verification Schema
  * Evaluates candidate defect crops for supporting vs. contradictory evidence
- * (e.g. manhole covers, asphalt patches, shadows, painted stripes)
+ * (e.g. manhole covers, asphalt patches, shadows, painted stripes, building windows, rail reflections)
  */
 export interface CropVerificationResult {
   isValidCrop: boolean;
@@ -94,6 +144,9 @@ export interface CropVerificationResult {
   isVehicleWheel: boolean;
   isVehicleWindowOrSeam: boolean;
   isVehicleGrille: boolean;
+  isBuildingWindowOrMortar?: boolean;
+  isRailwaySpecularReflect?: boolean;
+  isBridgeExpansionJoint?: boolean;
   isOnPlausibleRoadSurface: boolean;
   roadSurfaceConfidence: number; // 0 - 100%
   cropCalibratedConfidence: number; // 0 - 100

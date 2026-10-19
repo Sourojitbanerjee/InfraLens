@@ -206,9 +206,8 @@ export const TEST_SCENARIOS: TestScenario[] = [
     id: 8,
     group: 'negative',
     name: 'Building Facade (Masonry & Glazing)',
-    description: 'Architectural windows and masonry grid without paved road surface',
-    expectedStatus: 'rejected',
-    expectedRejectionReason: 'non_infrastructure',
+    description: 'Architectural windows and masonry grid on nominal building structure without defects',
+    expectedStatus: 'valid_infrastructure',
     expectedDefects: [],
     isPositiveDefectCase: false,
     createImage: () => {
@@ -1191,6 +1190,428 @@ export const TEST_SCENARIOS: TestScenario[] = [
             data[idx + 1] = cavityDepth;
             data[idx + 2] = cavityDepth;
           }
+        }
+      }
+
+      return { width: w, height: h, data };
+    },
+  },
+
+  // 38. Healthy Railway Track (Ballast, Sleepers, Intact Steel Rails)
+  {
+    id: 38,
+    group: 'difficult',
+    name: 'Healthy Railway Track Infrastructure',
+    description: 'Railway corridor with gravel ballast, wooden sleepers, and parallel steel rails with specular highlight. 0 defects.',
+    expectedStatus: 'valid_infrastructure',
+    expectedDefects: [],
+    isPositiveDefectCase: false,
+    createImage: () => {
+      const w = 128, h = 128;
+      const data = new Uint8ClampedArray(w * h * 4);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+          // Coarse gravel ballast background (neutral grey L ≈ 115)
+          const ballastNoise = ((x * 17 + y * 23) % 13) - 6;
+          let val = 115 + ballastNoise;
+
+          // Horizontal wooden sleepers every 14 pixels
+          if (y % 14 < 5) {
+            val = 78 + ((x * 7 + y * 11) % 5);
+          }
+
+          // Left rail (x: 36 to 42): metallic specular steel highlight
+          if (x >= 36 && x <= 42) {
+            val = x >= 38 && x <= 40 ? 210 : 165;
+          }
+
+          // Right rail (x: 86 to 92): metallic specular steel highlight
+          if (x >= 86 && x <= 92) {
+            val = x >= 88 && x <= 90 ? 210 : 165;
+          }
+
+          data[idx] = val;
+          data[idx + 1] = val;
+          data[idx + 2] = val;
+          data[idx + 3] = 255;
+        }
+      }
+      return { width: w, height: h, data };
+    },
+  },
+
+  // 39. Damaged Railway Track (Fracture Gap / Broken Rail)
+  {
+    id: 39,
+    group: 'difficult',
+    name: 'Damaged Railway Track with Rail Fracture',
+    description: 'Railway corridor with severe localized fracture continuity break across the left steel rail head.',
+    expectedStatus: 'valid_infrastructure',
+    expectedDefects: ['railway_defect'],
+    isPositiveDefectCase: true,
+    createImage: () => {
+      const scene = TEST_SCENARIOS.find((s) => s.id === 38)!.createImage();
+      const { width: w, height: h, data } = scene;
+
+      // Fracture gap on left rail (y: 55 to 68, x: 34 to 44)
+      for (let y = 55; y <= 68; y++) {
+        for (let x = 34; x <= 44; x++) {
+          const idx = (y * w + x) * 4;
+          const darkGap = 28 + ((x * 5 + y * 11) % 6);
+          data[idx] = darkGap;
+          data[idx + 1] = darkGap;
+          data[idx + 2] = darkGap;
+        }
+      }
+      return { width: w, height: h, data };
+    },
+  },
+
+  // 40. Healthy Bridge Overpass Span
+  {
+    id: 40,
+    group: 'difficult',
+    name: 'Healthy Concrete Bridge Overpass',
+    description: 'Elevated prestressed concrete bridge deck with support pier and open sky horizon. 0 defects.',
+    expectedStatus: 'valid_infrastructure',
+    expectedDefects: [],
+    isPositiveDefectCase: false,
+    createImage: () => {
+      const w = 128, h = 128;
+      const data = new Uint8ClampedArray(w * h * 4);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+          let r = 135, g = 135, b = 135;
+
+          // Sky in top 35%
+          if (y < 45) {
+            r = 160; g = 185; b = 220;
+          } else if (y >= 45 && y <= 85) {
+            // Horizontal concrete bridge deck (L ≈ 145)
+            const deckL = 145 + ((x * 11 + y * 13) % 7) - 3;
+            r = deckL; g = deckL; b = deckL;
+            // Clean expansion joint
+            if (x === 64) {
+              r = 120; g = 120; b = 120;
+            }
+          } else {
+            // Pier in middle (x: 52 to 76), void elsewhere
+            if (x >= 52 && x <= 76) {
+              const pierL = 130 + ((x * 7 + y * 9) % 5);
+              r = pierL; g = pierL; b = pierL;
+            } else {
+              r = 90; g = 100; b = 115;
+            }
+          }
+
+          data[idx] = r;
+          data[idx + 1] = g;
+          data[idx + 2] = b;
+          data[idx + 3] = 255;
+        }
+      }
+      return { width: w, height: h, data };
+    },
+  },
+
+  // 41. Damaged Bridge Overpass (Concrete Spalling & Exposed Sub-base)
+  {
+    id: 41,
+    group: 'difficult',
+    name: 'Bridge Overpass with Structural Spalling',
+    description: 'Elevated bridge deck containing deep spalled concrete cavity with fractured edge gradient.',
+    expectedStatus: 'valid_infrastructure',
+    expectedDefects: ['spalling_concrete'],
+    isPositiveDefectCase: true,
+    createImage: () => {
+      const scene = TEST_SCENARIOS.find((s) => s.id === 40)!.createImage();
+      const { width: w, height: h, data } = scene;
+
+      // Spalling cavity on the concrete deck (x: 35 to 55, y: 55 to 75)
+      for (let y = 55; y <= 75; y++) {
+        for (let x = 35; x <= 55; x++) {
+          const dx = (x - 45) / 9.0;
+          const dy = (y - 65) / 8.0;
+          if (dx * dx + dy * dy <= 1.0) {
+            const idx = (y * w + x) * 4;
+            const spallVoid = 30 + ((x * 7 + y * 13) % 7);
+            data[idx] = spallVoid;
+            data[idx + 1] = spallVoid;
+            data[idx + 2] = spallVoid;
+          }
+        }
+      }
+      return { width: w, height: h, data };
+    },
+  },
+
+  // 42. Building Facade with Structural Masonry Crack
+  {
+    id: 42,
+    group: 'difficult',
+    name: 'Building Facade with Structural Masonry Crack',
+    description: 'Multi-story brick building facade with prominent diagonal shear fracture crack propagating across masonry.',
+    expectedStatus: 'valid_infrastructure',
+    expectedDefects: ['structural_crack'],
+    isPositiveDefectCase: true,
+    createImage: () => {
+      const scene = TEST_SCENARIOS.find((s) => s.id === 8)!.createImage();
+      const { width: w, height: h, data } = scene;
+
+      // Diagonal jagged crack cutting across masonry from (40, 20) to (75, 95)
+      for (let y = 20; y <= 95; y++) {
+        const crackX = Math.round(40 + (y - 20) * 0.45 + Math.sin(y * 0.25) * 3);
+        for (let dx = -1; dx <= 1; dx++) {
+          const cx = crackX + dx;
+          if (cx >= 0 && cx < w) {
+            const idx = (y * w + cx) * 4;
+            data[idx] = 25;
+            data[idx + 1] = 22;
+            data[idx + 2] = 20;
+          }
+        }
+      }
+      return { width: w, height: h, data };
+    },
+  },
+
+  // 43. Busy Street Scene with Yellow Taxi on Clean Road
+  {
+    id: 43,
+    group: 'difficult',
+    name: 'Busy Street Scene with Yellow Taxi (Nominal)',
+    description: 'Urban street scene containing yellow municipal taxi cab resting on intact asphalt road. Must produce ZERO false detections.',
+    expectedStatus: 'valid_infrastructure',
+    expectedDefects: [],
+    isPositiveDefectCase: false,
+    createImage: () => {
+      const w = 128, h = 128;
+      const data = new Uint8ClampedArray(w * h * 4);
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+
+          // Road on ground plane (y >= 65), sky/buildings above
+          let r = 112 + ((x * 7 + y * 11) % 7) - 3;
+          let g = 112 + ((x * 7 + y * 11) % 7) - 3;
+          let b = 112 + ((x * 7 + y * 11) % 7) - 3;
+
+          if (y < 25) {
+            r = 160; g = 180; b = 215; // Sky
+          }
+
+          // White lane stripe on road
+          if (y >= 75 && y <= 120 && x >= 18 && x <= 22) {
+            r = 215; g = 215; b = 215;
+          }
+
+          // Yellow Taxi Body (x: 32 to 108, y: 32 to 68)
+          if (x >= 32 && x <= 108 && y >= 32 && y <= 68) {
+            // Vivid Taxi Yellow (R=240, G=195, B=20)
+            r = 240 + ((x * 3 + y * 5) % 7);
+            g = 195 + ((x * 3 + y * 5) % 5);
+            b = 20 + ((x * 3 + y * 5) % 4);
+
+            // Windshield and side windows
+            if (y >= 36 && y <= 48 && x >= 40 && x <= 100) {
+              r = 40; g = 44; b = 52;
+            }
+
+            // Taxi roof sign
+            if (y >= 26 && y <= 32 && x >= 60 && x <= 80) {
+              r = 245; g = 245; b = 230;
+            }
+          }
+
+          // Undercarriage shadow
+          if (x >= 36 && x <= 104 && y >= 66 && y <= 72) {
+            r = 35; g = 35; b = 35;
+          }
+
+          // Taxi wheels
+          const isWheel1 = Math.hypot(x - 50, y - 68) <= 6.5;
+          const isWheel2 = Math.hypot(x - 90, y - 68) <= 6.5;
+          if (isWheel1 || isWheel2) {
+            r = 25; g = 25; b = 25;
+          }
+
+          data[idx] = r;
+          data[idx + 1] = g;
+          data[idx + 2] = b;
+          data[idx + 3] = 255;
+        }
+      }
+      return { width: w, height: h, data };
+    },
+  },
+
+  // 44. Busy Street Scene with Yellow Taxi AND Real Pothole
+  {
+    id: 44,
+    group: 'difficult',
+    name: 'Street Scene with Taxi and Real Pothole',
+    description: 'Street scene with yellow municipal taxi plus genuine asphalt cavity defect on foreground road.',
+    expectedStatus: 'valid_infrastructure',
+    expectedDefects: ['pothole'],
+    isPositiveDefectCase: true,
+    createImage: () => {
+      const taxiScene = TEST_SCENARIOS.find((s) => s.id === 43)!.createImage();
+      const { width: w, height: h, data } = taxiScene;
+
+      // Real pothole on foreground road (x: 48 to 72, y: 92 to 110)
+      for (let y = 92; y <= 110; y++) {
+        for (let x = 48; x <= 72; x++) {
+          const dx = (x - 60) / 10.0;
+          const dy = (y - 101) / 7.0;
+          if (dx * dx + dy * dy <= 1.0) {
+            const idx = (y * w + x) * 4;
+            const cavityDepth = 26 + ((x * 7 + y * 13) % 7);
+            data[idx] = cavityDepth;
+            data[idx + 1] = cavityDepth;
+            data[idx + 2] = cavityDepth;
+          }
+        }
+      }
+      return { width: w, height: h, data };
+    },
+  },
+
+  // 45. Severely Damaged Building with Structural Wall Collapse & Rubble Accumulation
+  {
+    id: 45,
+    group: 'difficult',
+    name: 'Severely Damaged Building with Structural Wall Collapse',
+    description: 'Multi-story concrete building with extensive structural deterioration, breached wall sections, and rubble accumulation.',
+    expectedStatus: 'valid_infrastructure',
+    expectedDefects: ['building_collapse'],
+    isPositiveDefectCase: true,
+    createImage: () => {
+      const w = 128, h = 128;
+      const data = new Uint8ClampedArray(w * h * 4);
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+          const noise = ((x * 17 + y * 23) % 9) - 4;
+
+          // Base concrete facade (L ~ 145)
+          let r = 145 + noise;
+          let g = 144 + noise;
+          let b = 142 + noise;
+
+          // Concrete structural floor slabs and vertical columns
+          if (y === 30 || y === 65 || y === 95 || x === 15 || x === 115) {
+            r -= 20; g -= 20; b -= 20;
+          }
+
+          // Upper intact window aperture on right (x: 85 to 105, y: 15 to 35)
+          if (x >= 85 && x <= 105 && y >= 15 && y <= 35) {
+            r = 55; g = 58; b = 64; // dark reflective window glass
+          }
+
+          // MAJOR STRUCTURAL COLLAPSE / BREACHED WALL CAVITY (x: 25 to 75, y: 20 to 75)
+          const breachCx = 50;
+          const breachCy = 48;
+          const rx = 24 + Math.sin(y * 0.4) * 4;
+          const ry = 26 + Math.cos(x * 0.35) * 3;
+          const dx = (x - breachCx) / rx;
+          const dy = (y - breachCy) / ry;
+          const dist = dx * dx + dy * dy;
+
+          if (dist <= 1.0) {
+            // Deep interior shadowed void: dark cavity (L ~ 25-35)
+            let voidL = 28 + ((x * 5 + y * 7) % 7);
+            // Broken floor slab projecting into the void at y=46 to 48
+            if (y >= 46 && y <= 48 && x >= 25 && x <= 60) {
+              voidL = 105 + noise;
+            }
+            r = voidL;
+            g = voidL;
+            b = voidL + 2;
+          } else if (dist <= 1.25) {
+            // Fractured, shattered jagged concrete spalling perimeter around breach
+            const fracL = 70 + ((x * 19 + y * 31) % 50);
+            r = fracL;
+            g = fracL;
+            b = fracL;
+          }
+
+          // RUBBLE & DEBRIS ACCUMULATION AT BUILDING BASE (y: 85 to 127, x: 15 to 90)
+          if (y >= 85 && x >= 15 && x <= 90) {
+            const moundHeight = 85 + (x > 50 ? (x - 50) * 0.7 : (50 - x) * 0.5);
+            if (y >= moundHeight) {
+              const rubbleChunk = ((x * 29 + y * 47 + (x % 5) * 17) % 85) + 55;
+              r = rubbleChunk;
+              g = rubbleChunk - 3;
+              b = rubbleChunk - 6;
+            }
+          }
+
+          data[idx] = Math.max(0, Math.min(255, r));
+          data[idx + 1] = Math.max(0, Math.min(255, g));
+          data[idx + 2] = Math.max(0, Math.min(255, b));
+          data[idx + 3] = 255;
+        }
+      }
+
+      return { width: w, height: h, data };
+    },
+  },
+
+  // 46. Nominal Concrete Building with Windows (Safe / Healthy)
+  {
+    id: 46,
+    group: 'difficult',
+    name: 'Nominal Concrete Building with Windows',
+    description: 'Clean multi-story concrete facade with periodic architectural window apertures and columns. Verified non-defect.',
+    expectedStatus: 'valid_infrastructure',
+    expectedDefects: [],
+    isPositiveDefectCase: false,
+    createImage: () => {
+      const w = 128, h = 128;
+      const data = new Uint8ClampedArray(w * h * 4);
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+          const noise = ((x * 13 + y * 19) % 7) - 3;
+
+          // Clean concrete facade (L ~ 150)
+          let r = 150 + noise;
+          let g = 149 + noise;
+          let b = 147 + noise;
+
+          // Periodic vertical architectural columns
+          if (x % 32 === 0 || x % 32 === 1) {
+            r -= 15; g -= 15; b -= 15;
+          }
+
+          // Horizontal floor dividers
+          if (y === 42 || y === 84) {
+            r -= 18; g -= 18; b -= 18;
+          }
+
+          // Grid of clean rectangular architectural windows (safe/nominal)
+          const isWindowCol = (x % 32 >= 8 && x % 32 <= 24);
+          const isWindowRow = (y >= 12 && y <= 34) || (y >= 54 && y <= 76) || (y >= 96 && y <= 118);
+          if (isWindowCol && isWindowRow) {
+            const isFrame = (x % 32 === 8 || x % 32 === 24 || y === 12 || y === 34 || y === 54 || y === 76 || y === 96 || y === 118);
+            if (isFrame) {
+              r = 90; g = 90; b = 92;
+            } else {
+              r = 60 + ((x + y) % 3);
+              g = 68 + ((x + y) % 3);
+              b = 78 + ((x + y) % 3);
+            }
+          }
+
+          data[idx] = Math.max(0, Math.min(255, r));
+          data[idx + 1] = Math.max(0, Math.min(255, g));
+          data[idx + 2] = Math.max(0, Math.min(255, b));
+          data[idx + 3] = 255;
         }
       }
 
