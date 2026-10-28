@@ -343,7 +343,7 @@ export class ImageValidationPipeline {
     const skyRatio = skyPixelCount / totalPixels;
 
     // Non-infrastructure: Pure nature/vegetation (e.g. dense forest, green lawn without road)
-    if (vegetationRatio > 0.75 && roadRatio < 0.10 && sceneUnderstanding.primaryCategory !== 'building_damage' && sceneUnderstanding.primaryCategory !== 'bridge_damage') {
+    if (vegetationRatio > 0.75 && roadRatio < 0.10 && !sceneUnderstanding.distractingObjects.hasVehicles && sceneUnderstanding.primaryCategory !== 'building_damage' && sceneUnderstanding.primaryCategory !== 'bridge_damage') {
       return {
         sceneType: 'non_infrastructure',
         confidence: 91.0,
@@ -352,7 +352,7 @@ export class ImageValidationPipeline {
     }
 
     // Non-infrastructure: Indoor room or living space
-    if (metrics.saturationMean > 0.45 && roadRatio < 0.12 && !sceneUnderstanding.containsInfrastructure && !metrics.isGrayscaleOrNeutral) {
+    if (metrics.saturationMean > 0.45 && roadRatio < 0.12 && !sceneUnderstanding.containsInfrastructure && !sceneUnderstanding.distractingObjects.hasVehicles && !metrics.isGrayscaleOrNeutral) {
       return {
         sceneType: 'non_infrastructure',
         confidence: 88.0,
@@ -434,11 +434,11 @@ export class ImageValidationPipeline {
       };
     }
 
-    // Urban Street Scene fallback
-    if (roadRatio >= 0.20 || (skyRatio > 0.05 && roadRatio >= 0.15)) {
+    // Urban Street / Vehicle Scene fallback
+    if (sceneUnderstanding.distractingObjects.hasVehicles || roadRatio >= 0.20 || (skyRatio > 0.05 && roadRatio >= 0.15)) {
       return {
         sceneType: 'urban_street',
-        confidence: 82.0,
+        confidence: 84.0,
       };
     }
 
@@ -450,11 +450,11 @@ export class ImageValidationPipeline {
       };
     }
 
-    // If moderate neutral content exists, mark as ambiguous rather than outright rejected
-    if (roadRatio >= 0.15 || metrics.isGrayscaleOrNeutral) {
+    // If moderate neutral content exists or vehicles are present, mark as urban street/maintenance rather than outright rejected
+    if (roadRatio >= 0.15 || metrics.isGrayscaleOrNeutral || sceneUnderstanding.distractingObjects.hasVehicles) {
       return {
-        sceneType: 'urban_street',
-        confidence: 65.0,
+        sceneType: sceneUnderstanding.distractingObjects.hasVehicles ? 'urban_maintenance' : 'urban_street',
+        confidence: 70.0,
       };
     }
 

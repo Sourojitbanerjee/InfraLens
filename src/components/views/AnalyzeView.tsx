@@ -288,14 +288,16 @@ export const AnalyzeView: React.FC = () => {
                     stage === 'completed'
                       ? inferenceResult?.operationalState === 'DAMAGE_VERIFIED'
                         ? 'text-cyan-400'
-                        : inferenceResult?.operationalState === 'NO_DAMAGE_DETECTED'
+                        : inferenceResult?.operationalState === 'NO_DAMAGE_DETECTED' || inferenceResult?.operationalState === 'NO_DAMAGE_DETECTED_WITHIN_SUPPORTED_SCOPE'
                         ? 'text-emerald-400'
-                        : inferenceResult?.operationalState === 'UNCERTAIN'
+                        : inferenceResult?.operationalState === 'UNCERTAIN' || inferenceResult?.operationalState === 'UNCERTAIN_REQUIRES_REVIEW' || inferenceResult?.operationalState === 'INFRASTRUCTURE_PRESENT_BUT_UNCERTAIN'
                         ? 'text-amber-400'
-                        : inferenceResult?.operationalState === 'UNSUPPORTED_IMAGE'
+                        : inferenceResult?.operationalState === 'UNSUPPORTED_IMAGE' || inferenceResult?.operationalState === 'UNSUPPORTED_SCENE' || inferenceResult?.operationalState === 'NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED'
                         ? 'text-orange-400'
-                        : inferenceResult?.operationalState === 'IMAGE_QUALITY_INSUFFICIENT'
+                        : inferenceResult?.operationalState === 'IMAGE_QUALITY_INSUFFICIENT' || inferenceResult?.operationalState === 'IMAGE_INVALID'
                         ? 'text-rose-400'
+                        : inferenceResult?.operationalState === 'ANALYSIS_FAILED' || inferenceResult?.operationalState === 'INFERENCE_FAILED' || inferenceResult?.operationalState === 'MODEL_UNAVAILABLE'
+                        ? 'text-rose-500'
                         : 'text-rose-400'
                       : stage === 'scanning'
                       ? 'text-cyan-400 animate-pulse'
@@ -324,15 +326,15 @@ export const AnalyzeView: React.FC = () => {
                     ? 'INGEST FAILED'
                     : inferenceResult?.operationalState === 'DAMAGE_VERIFIED'
                     ? 'DAMAGE VERIFIED'
-                    : inferenceResult?.operationalState === 'NO_DAMAGE_DETECTED'
+                    : inferenceResult?.operationalState === 'NO_DAMAGE_DETECTED' || inferenceResult?.operationalState === 'NO_DAMAGE_DETECTED_WITHIN_SUPPORTED_SCOPE'
                     ? 'NO DAMAGE DETECTED'
-                    : inferenceResult?.operationalState === 'UNCERTAIN'
-                    ? 'UNCERTAIN INSPECTION'
-                    : inferenceResult?.operationalState === 'UNSUPPORTED_IMAGE'
-                    ? 'UNSUPPORTED IMAGE'
-                    : inferenceResult?.operationalState === 'IMAGE_QUALITY_INSUFFICIENT'
-                    ? 'QUALITY INSUFFICIENT'
-                    : inferenceResult?.operationalState === 'ANALYSIS_FAILED'
+                    : inferenceResult?.operationalState === 'UNCERTAIN' || inferenceResult?.operationalState === 'UNCERTAIN_REQUIRES_REVIEW' || inferenceResult?.operationalState === 'INFRASTRUCTURE_PRESENT_BUT_UNCERTAIN'
+                    ? 'UNCERTAIN — REQUIRES REVIEW'
+                    : inferenceResult?.operationalState === 'UNSUPPORTED_IMAGE' || inferenceResult?.operationalState === 'UNSUPPORTED_SCENE' || inferenceResult?.operationalState === 'NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED'
+                    ? 'UNSUPPORTED SCENE'
+                    : inferenceResult?.operationalState === 'IMAGE_QUALITY_INSUFFICIENT' || inferenceResult?.operationalState === 'IMAGE_INVALID'
+                    ? 'IMAGE QUALITY INSUFFICIENT'
+                    : inferenceResult?.operationalState === 'ANALYSIS_FAILED' || inferenceResult?.operationalState === 'INFERENCE_FAILED' || inferenceResult?.operationalState === 'MODEL_UNAVAILABLE'
                     ? 'ANALYSIS FAILED'
                     : 'PIPELINE COMPLETE'}
                 </span>
@@ -621,12 +623,14 @@ export const AnalyzeView: React.FC = () => {
                   className={`text-[10px] font-mono font-extrabold px-2 py-0.5 rounded uppercase ${
                     inferenceResult.operationalState === 'DAMAGE_VERIFIED'
                       ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/50'
-                      : inferenceResult.operationalState === 'NO_DAMAGE_DETECTED'
+                      : inferenceResult.operationalState === 'NO_DAMAGE_DETECTED' || inferenceResult.operationalState === 'NO_DAMAGE_DETECTED_WITHIN_SUPPORTED_SCOPE'
                       ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
-                      : inferenceResult.operationalState === 'UNCERTAIN'
+                      : inferenceResult.operationalState === 'UNCERTAIN' || inferenceResult.operationalState === 'UNCERTAIN_REQUIRES_REVIEW' || inferenceResult.operationalState === 'INFRASTRUCTURE_PRESENT_BUT_UNCERTAIN'
                       ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
-                      : inferenceResult.operationalState === 'UNSUPPORTED_IMAGE'
+                      : inferenceResult.operationalState === 'UNSUPPORTED_IMAGE' || inferenceResult.operationalState === 'UNSUPPORTED_SCENE' || inferenceResult.operationalState === 'NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED'
                       ? 'bg-orange-950 text-orange-300 border border-orange-500/40'
+                      : inferenceResult.operationalState === 'IMAGE_QUALITY_INSUFFICIENT' || inferenceResult.operationalState === 'IMAGE_INVALID'
+                      ? 'bg-rose-950 text-rose-300 border border-rose-500/40'
                       : 'bg-rose-950 text-rose-300 border border-rose-500/40'
                   }`}
                 >
@@ -642,14 +646,14 @@ export const AnalyzeView: React.FC = () => {
                 </div>
                 <div>Awaiting neural analysis completion...</div>
               </div>
-            ) : inferenceResult.operationalState === 'UNSUPPORTED_IMAGE' || inferenceResult.operationalState === 'IMAGE_QUALITY_INSUFFICIENT' || inferenceResult.operationalState === 'NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED' ? (
+            ) : inferenceResult.operationalState === 'UNSUPPORTED_IMAGE' || inferenceResult.operationalState === 'IMAGE_QUALITY_INSUFFICIENT' || inferenceResult.operationalState === 'NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED' || inferenceResult.operationalState === 'UNSUPPORTED_SCENE' || inferenceResult.operationalState === 'IMAGE_INVALID' ? (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 space-y-2 text-xs font-mono">
                   <div className="flex items-center gap-2 text-amber-300 font-bold">
                     <XCircle className="w-4 h-4 text-amber-400 shrink-0" />
                     <span>
-                      {inferenceResult.operationalState === 'UNSUPPORTED_IMAGE' || inferenceResult.operationalState === 'NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED'
-                        ? 'UNSUPPORTED IMAGE REJECTED'
+                      {inferenceResult.operationalState === 'UNSUPPORTED_IMAGE' || inferenceResult.operationalState === 'UNSUPPORTED_SCENE' || inferenceResult.operationalState === 'NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED'
+                        ? 'UNSUPPORTED SCENE REJECTED'
                         : 'IMAGE QUALITY INSUFFICIENT'}
                     </span>
                   </div>
@@ -725,7 +729,7 @@ export const AnalyzeView: React.FC = () => {
                   <span>SWITCH TO LOCAL VISION ENGINE</span>
                 </button>
               </div>
-            ) : inferenceResult.operationalState === 'UNCERTAIN' || inferenceResult.operationalState === 'INFRASTRUCTURE_PRESENT_BUT_UNCERTAIN' ? (
+            ) : inferenceResult.operationalState === 'UNCERTAIN' || inferenceResult.operationalState === 'UNCERTAIN_REQUIRES_REVIEW' || inferenceResult.operationalState === 'INFRASTRUCTURE_PRESENT_BUT_UNCERTAIN' ? (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 space-y-2 text-xs font-mono">
                   <div className="flex items-center gap-2 text-amber-300 font-bold">
@@ -895,7 +899,11 @@ export const AnalyzeView: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between text-slate-300">
                       <span>Daily Commuters:</span>
-                      <span className="font-bold text-white">~{inferenceResult.impact.affectedUsersPerDay.toLocaleString()} / day</span>
+                      <span className="font-bold text-white">
+                        {inferenceResult.impact.isLocationProvided !== false && inferenceResult.impact.affectedUsersPerDay > 0
+                          ? `~${inferenceResult.impact.affectedUsersPerDay.toLocaleString()} / day`
+                          : 'Provisional (GPS coordinates required)'}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between text-slate-300">
                       <span>Traffic Corridor:</span>
@@ -903,12 +911,20 @@ export const AnalyzeView: React.FC = () => {
                     </div>
                     <div className="pt-1.5 border-t border-slate-800 space-y-1 text-[11px]">
                       <div className="text-[10px] text-slate-500">PROXIMATE ASSETS:</div>
-                      {inferenceResult.impact.nearbyRisks.map((risk, i) => (
-                        <div key={i} className="flex justify-between text-slate-300">
-                          <span>{risk.name}</span>
-                          <span className="text-rose-400 font-bold">{risk.distanceMeters}m</span>
+                      {inferenceResult.impact.nearbyRisks.length > 0 ? (
+                        inferenceResult.impact.nearbyRisks.map((risk, i) => (
+                          <div key={i} className="flex justify-between text-slate-300">
+                            <span>{risk.name}</span>
+                            <span className="text-rose-400 font-bold">{risk.distanceMeters}m</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-slate-500 text-[10px] italic">
+                          {inferenceResult.impact.isLocationProvided === false
+                            ? 'Location not provided — proximate asset search withheld.'
+                            : 'No sensitive assets within 800m corridor.'}
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 )}

@@ -35,3 +35,5 @@ dist-ssr
 *.tsbuildinfo
 *.bundle.cjs
 .venv
+__pycache__/
+*.pt

@@ -128,7 +128,7 @@ export class InfrastructureCvEngine {
 
     // 5. Scan for Waste / Refuse Accumulations (Roads, Urban Streets, Sidewalks)
     if (sceneType === 'road_asphalt' || sceneType === 'urban_street' || sceneType === 'concrete_sidewalk' || !sceneType) {
-      const wasteCandidates = this.extractWasteAnomalies(lumGrid, colorVarGrid, gradGrid, gridCols, gridRows);
+      const wasteCandidates = this.extractWasteAnomalies(lumGrid, colorVarGrid, gradGrid, gridCols, gridRows, vehicleEnvelopes);
       candidates.push(...wasteCandidates);
     }
 
@@ -433,7 +433,8 @@ export class InfrastructureCvEngine {
     colorVarGrid: Float32Array,
     gradGrid: Float32Array,
     cols: number,
-    rows: number
+    rows: number,
+    vehicleEnvelopes: VehicleEnvelope[] = []
   ): RawDefectDetection[] {
     const visited = new Uint8Array(cols * rows);
     const detections: RawDefectDetection[] = [];
@@ -452,6 +453,19 @@ export class InfrastructureCvEngine {
 
           // Requires bulk spatial accumulation (> 8 cells)
           if (component.cells.length >= 8) {
+            // Waste cannot exist inside a vehicle body / superstructure
+            const centerNormX = ((component.minC + component.maxC) / (2 * cols)) * 100;
+            const centerNormY = ((component.minR + component.maxR) / (2 * rows)) * 100;
+            const isInsideVehicle = vehicleEnvelopes.some(
+              (env) =>
+                centerNormX >= env.minX - 5 &&
+                centerNormX <= env.maxX + 5 &&
+                centerNormY >= env.minY - 5 &&
+                centerNormY <= env.maxY + 5
+            );
+            if (isInsideVehicle) {
+              continue;
+            }
             const spanW = component.maxC - component.minC + 1;
             const spanH = component.maxR - component.minR + 1;
             const coveragePct = (component.cells.length / (cols * rows)) * 100;

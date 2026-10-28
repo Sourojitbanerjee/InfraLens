@@ -38,30 +38,34 @@ export class RoadSurfaceSegmenter {
     if (max === 0) return false;
     const sat = (max - min) / max;
 
-    // 1. Vivid Municipal Orange Transit Bus (R >> B, G moderate, high saturation)
-    // Common on San Francisco Muni, London/NYC commuter buses, etc.
+    // 1. Vivid Municipal Orange Transit Bus & Warning Fleet
     const isOrangeBus =
-      r >= 170 &&
-      g >= 50 &&
-      g <= 160 &&
-      b <= 65 &&
-      r > g + 40 &&
-      (r - b) >= 90 &&
-      sat >= 0.52;
+      r >= 155 &&
+      g >= 45 &&
+      g <= 165 &&
+      b <= 85 &&
+      r > g + 25 &&
+      (r - b) >= 70 &&
+      sat >= 0.40;
 
     // 2. Bright Red Vehicle Body
-    const isRedVehicle = r >= 135 && g <= 90 && b <= 90 && (r - Math.max(g, b)) >= 45 && sat >= 0.35;
+    const isRedVehicle = r >= 135 && g <= 95 && b <= 95 && (r - Math.max(g, b)) >= 40 && sat >= 0.30;
 
-    // 3. Bright Yellow Vehicle Body (School bus, taxi)
-    const isYellowVehicle = r >= 150 && g >= 130 && b <= 75 && (Math.min(r, g) - b) >= 65 && sat >= 0.35;
+    // 3. Municipal Yellow & Amber Maintenance Vehicle (Street sweepers, utility trucks, work vehicles, taxis)
+    const isYellowMaintenance =
+      r >= 165 &&
+      g >= 130 &&
+      b <= 85 &&
+      (r + g) / 2 >= b + 55 &&
+      sat >= 0.35;
 
     // 4. Vivid Blue Vehicle Body
-    const isBlueVehicle = b >= 125 && r <= 100 && (b - Math.max(r, g)) >= 30 && sat >= 0.30;
+    const isBlueVehicle = b >= 130 && r <= 100 && (b - Math.max(r, g)) >= 30 && sat >= 0.30;
 
-    // 5. Vivid Green Vehicle Body
-    const isGreenVehicle = g >= 125 && b <= 105 && r <= 105 && (g - Math.max(r, b)) >= 30 && sat >= 0.30;
+    // 5. Vivid Green Vehicle Body / Safety Lime
+    const isGreenVehicle = g >= 130 && (g - Math.max(r, b)) >= 25 && sat >= 0.30;
 
-    return isOrangeBus || isRedVehicle || isYellowVehicle || isBlueVehicle || isGreenVehicle;
+    return isOrangeBus || isRedVehicle || isYellowMaintenance || isBlueVehicle || isGreenVehicle;
   }
 
   /**
@@ -159,8 +163,8 @@ export class RoadSurfaceSegmenter {
           }
         }
 
-        // A vehicle body covers a significant spatial cluster (at least 6 grid cells, but less than 65% of frame)
-        if (cellCount >= 6 && cellCount <= gridCols * gridRows * 0.65) {
+        // A vehicle body covers a significant spatial cluster (at least 80 grid cells, ~2% of frame, up to 85% of frame)
+        if (cellCount >= 80 && cellCount <= gridCols * gridRows * 0.85) {
           // Expand bounding envelope to encompass full vehicle superstructure
           // (including tinted windows above body and wheel wells / tires directly below)
           const spanW = maxC - minC + 1;
