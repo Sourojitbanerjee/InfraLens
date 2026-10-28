@@ -66,8 +66,9 @@ export class AiVisionService {
     onProgress?: (stage: AnalysisStage, percent: number) => void,
     coordinateOverride?: { latitude: number; longitude: number }
   ): Promise<AiInferenceResult> {
-    const lat = coordinateOverride?.latitude ?? 37.7792;
-    const lon = coordinateOverride?.longitude ?? -122.4191;
+    const hasCoordinates = coordinateOverride !== undefined && coordinateOverride !== null;
+    const lat = coordinateOverride?.latitude ?? null;
+    const lon = coordinateOverride?.longitude ?? null;
 
     // Stage 1: UPLOAD
     onProgress?.('upload', 12);
@@ -199,7 +200,7 @@ export class AiVisionService {
 
     // Stage 7: IMPACT ANALYSIS
     onProgress?.('impact_analysis', 88);
-    const impact = ImpactEngine.assessImpact(lat, lon, category, severityScore);
+    const impact = ImpactEngine.assessImpact(lat, lon, category, severityScore, hasCoordinates);
     await new Promise((r) => setTimeout(r, 100));
 
     // Stage 8: PRIORITY GENERATED
@@ -216,12 +217,19 @@ export class AiVisionService {
     });
     await new Promise((r) => setTimeout(r, 100));
 
-    // Route Authority
-    const authRoute = AuthorityResolver.resolve(
-      { latitude: lat, longitude: lon, address: 'Detected Location', ward: 'Ward 6', zone: 'Urban Arterial' },
-      category,
-      severity
-    );
+    // Route Authority (Provisional if coordinates were not provided)
+    const authRoute = hasCoordinates
+      ? AuthorityResolver.resolve(
+          { latitude: lat!, longitude: lon!, address: 'Detected Location', ward: 'Ward 6', zone: 'Urban Arterial' },
+          category,
+          severity
+        )
+      : {
+          authority: { id: 'provisional-routing', name: 'Unassigned Municipal District' },
+          departmentName: 'Provisional Department Routing (Location Unspecified)',
+          recommendedAction: 'Verify Physical Asset Geolocation Prior to Dispatch',
+          slaHours: 48,
+        };
 
     const boundingBoxes: BoundingBox[] = scoredDetections.map((d) => ({
       id: d.id,

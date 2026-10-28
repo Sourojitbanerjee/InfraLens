@@ -8,26 +8,32 @@ export interface ImagePixelBuffer {
 }
 
 /**
- * Universal Operational Decision States (8 Canonical Outcomes)
+ * Canonical Operational Decision States (Phase 6 Enforced Lifecycle)
  * Enforces strict decision policies with zero manufactured positive outcomes.
  */
+export type CanonicalOperationalDecisionState =
+  | 'IMAGE_INVALID'
+  | 'IMAGE_QUALITY_INSUFFICIENT'
+  | 'UNSUPPORTED_SCENE'
+  | 'ANALYSIS_FAILED'
+  | 'DAMAGE_VERIFIED'
+  | 'NO_DAMAGE_DETECTED'
+  | 'UNCERTAIN_REQUIRES_REVIEW';
+
 export type UniversalOperationalDecisionState =
+  | CanonicalOperationalDecisionState
   | 'INFRASTRUCTURE_DAMAGE_VERIFIED'
   | 'NO_DAMAGE_DETECTED_WITHIN_SUPPORTED_SCOPE'
   | 'INFRASTRUCTURE_PRESENT_BUT_UNCERTAIN'
   | 'NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED'
-  | 'IMAGE_QUALITY_INSUFFICIENT'
   | 'UNSUPPORTED_INFRASTRUCTURE_CATEGORY'
   | 'MODEL_UNAVAILABLE'
   | 'INFERENCE_FAILED';
 
 export type OperationalDecisionState =
   | UniversalOperationalDecisionState
-  | 'DAMAGE_VERIFIED'             // Alias for INFRASTRUCTURE_DAMAGE_VERIFIED
-  | 'NO_DAMAGE_DETECTED'           // Alias for NO_DAMAGE_DETECTED_WITHIN_SUPPORTED_SCOPE
-  | 'UNCERTAIN'                    // Alias for INFRASTRUCTURE_PRESENT_BUT_UNCERTAIN
-  | 'UNSUPPORTED_IMAGE'            // Alias for NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED
-  | 'ANALYSIS_FAILED';             // Alias for INFERENCE_FAILED
+  | 'UNSUPPORTED_IMAGE'            // Backward compatibility alias for UNSUPPORTED_SCENE / NO_RELEVANT_INFRASTRUCTURE_IDENTIFIED
+  | 'UNCERTAIN';                   // Backward compatibility alias for UNCERTAIN_REQUIRES_REVIEW
 
 /**
  * Scene Taxonomy separating infrastructure presence from defects (Phase 2 Stage B)
@@ -57,6 +63,8 @@ export type SceneClassification =
   | 'railway_track'
   | 'concrete_sidewalk'
   | 'urban_street'
+  | 'urban_maintenance'
+  | 'construction_zone'
   | 'drainage_structure'
   | 'utility_corridor'
   | 'lighting_infrastructure'

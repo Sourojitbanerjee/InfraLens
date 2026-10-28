@@ -107,6 +107,8 @@ export interface ImpactAssessment {
   slaDeadlineHours: number;
   trafficImportance: 'critical' | 'high' | 'moderate' | 'low';
   sensitiveLocationScore: number; // 0 - 100
+  isLocationProvided?: boolean;
+  geographicProximityStatus?: 'verified' | 'provisional_location_unspecified';
 }
 
 export interface PriorityExplainability {

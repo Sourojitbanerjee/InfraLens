@@ -298,21 +298,21 @@ export class UniversalSceneUnderstandingEngine {
     }
 
     if (!isBuildingScene && !isRailwayScene && !isBridgeScene) {
-      if (roadCoverage >= 0.15 || (roadCoverage >= 0.10 && hasVehicles)) {
+      if (roadCoverage >= 0.10 || hasVehicles || vehicleCoverage >= 0.05) {
         detectedCategories.push('road_damage');
       }
 
-      if (concreteCoverage >= 0.12) {
+      if (concreteCoverage >= 0.08) {
         detectedCategories.push('sidewalk_hazard');
       }
 
       // Drainage: gutter curbs along bottom edges of roadways
-      if (roadCoverage >= 0.20) {
+      if (roadCoverage >= 0.15 || (roadCoverage >= 0.06 && hasVehicles)) {
         detectedCategories.push('drainage_overflow');
       }
 
       // Street lighting / utility structures: present on urban roads and pedestrian sidewalks
-      if (roadCoverage >= 0.15 || concreteCoverage >= 0.15) {
+      if (roadCoverage >= 0.10 || concreteCoverage >= 0.10 || hasVehicles) {
         detectedCategories.push('lighting_failure');
         detectedCategories.push('public_utility');
       }
@@ -357,7 +357,7 @@ export class UniversalSceneUnderstandingEngine {
     if (!containsInfrastructure) {
       if (vegetationCoverage >= 0.70) {
         explanation = 'Natural landscape containing dense foliage without visible municipal or civil infrastructure.';
-      } else if (meanSaturation > 0.40 && roadCoverage < 0.10) {
+      } else if (meanSaturation > 0.40 && roadCoverage < 0.10 && !hasVehicles) {
         explanation = 'Indoor domestic or commercial space without roadway or outdoor civil structures.';
       } else {
         explanation = 'Photograph does not contain recognizable civil or public right-of-way infrastructure.';

@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "esbuild tests/accuracyEvaluation.test.ts --bundle --platform=node --outfile=tests/accuracyEvaluation.bundle.cjs && node --test tests/accuracyEvaluation.bundle.cjs",
     "eval": "esbuild scripts/evaluate-accuracy.ts --bundle --platform=node --outfile=scripts/evaluate-accuracy.bundle.cjs && node scripts/evaluate-accuracy.bundle.cjs",
-    "server": "esbuild server/index.ts --bundle --platform=node --outfile=server/server.bundle.cjs && node server/server.bundle.cjs"
+    "server": "esbuild server/index.ts --bundle --platform=node --outfile=server/server.bundle.cjs && node server/server.bundle.cjs",
+    "ml-server": ".venv/bin/python3 server/ml_inference_service.py --serve"
   },
   "dependencies": {
     "clsx": "^2.1.1",

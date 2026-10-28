@@ -9,15 +9,25 @@ export interface ImpactAnalysisResult extends ImpactAssessment {
 
 export class ImpactEngine {
   /**
-   * Evaluate multi-factor civic and commuter impact
+   * Evaluate multi-factor civic and commuter impact using real evidence
    */
   static assessImpact(
-    latitude: number,
-    longitude: number,
-    category: InfrastructureCategory,
-    severityScore: number
+    latitude?: number | null,
+    longitude?: number | null,
+    category: InfrastructureCategory = 'road_damage',
+    severityScore: number = 50,
+    isLocationProvided: boolean = true
   ): ImpactAnalysisResult {
-    const nearbyPOIs = GisEngine.findNearbyPOIs(latitude, longitude, 800);
+    const hasValidCoords =
+      isLocationProvided &&
+      latitude !== undefined &&
+      latitude !== null &&
+      longitude !== undefined &&
+      longitude !== null;
+
+    const nearbyPOIs = hasValidCoords
+      ? GisEngine.findNearbyPOIs(latitude, longitude, 800)
+      : [];
 
     const schools = nearbyPOIs.filter((p) => p.type === 'school');
     const hospitals = nearbyPOIs.filter((p) => p.type === 'hospital');
@@ -26,7 +36,7 @@ export class ImpactEngine {
 
     // 1. Sensitive Location Score (0 - 100)
     // Proximity to school (<250m) or hospital (<250m) greatly elevates vulnerability
-    let sensitiveScore = 15;
+    let sensitiveScore = hasValidCoords ? 15 : 10;
     for (const s of schools) {
       if (s.distanceMeters <= 200) sensitiveScore += 35;
       else if (s.distanceMeters <= 400) sensitiveScore += 20;
@@ -42,7 +52,9 @@ export class ImpactEngine {
 
     // 2. Traffic Importance Rating
     let trafficImportance: 'critical' | 'high' | 'moderate' | 'low' = 'moderate';
-    if (arterialRoads.length > 0 || transits.length >= 2 || (transits.length > 0 && transits[0].distanceMeters <= 100)) {
+    if (!hasValidCoords) {
+      trafficImportance = 'moderate';
+    } else if (arterialRoads.length > 0 || transits.length >= 2 || (transits.length > 0 && transits[0].distanceMeters <= 100)) {
       trafficImportance = 'critical';
     } else if (transits.length > 0 || schools.length > 0) {
       trafficImportance = 'high';
@@ -53,14 +65,17 @@ export class ImpactEngine {
     }
 
     // 3. Estimated Affected Daily Commuters
-    let baseCommuters = 850;
-    if (trafficImportance === 'critical') baseCommuters += 2600;
-    else if (trafficImportance === 'high') baseCommuters += 1400;
+    let affectedPopulation = 0;
+    if (hasValidCoords) {
+      let baseCommuters = 850;
+      if (trafficImportance === 'critical') baseCommuters += 2600;
+      else if (trafficImportance === 'high') baseCommuters += 1400;
 
-    baseCommuters += transits.length * 750;
-    baseCommuters += schools.length * 600;
-    baseCommuters += hospitals.length * 500;
-    const affectedPopulation = Math.min(12500, Math.round(baseCommuters));
+      baseCommuters += transits.length * 750;
+      baseCommuters += schools.length * 600;
+      baseCommuters += hospitals.length * 500;
+      affectedPopulation = Math.min(12500, Math.round(baseCommuters));
+    }
 
     // 4. SLA Calculation based on severity and sensitivity
     let slaHours = 48;
@@ -116,6 +131,8 @@ export class ImpactEngine {
       sensitiveLocationScore: finalSensitiveScore,
       nearbySchoolsCount: schools.length,
       nearbyHospitalsCount: hospitals.length,
+      isLocationProvided: hasValidCoords,
+      geographicProximityStatus: hasValidCoords ? 'verified' : 'provisional_location_unspecified',
     };
   }
 }

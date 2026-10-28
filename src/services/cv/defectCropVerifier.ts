@@ -159,8 +159,12 @@ export class DefectCropVerifier {
     const isRoadDefect = defectType === 'pothole' || defectType === 'damaged_road' || defectType === 'damaged_sidewalk' || defectType === 'overflowing_drain';
 
     if (context.rejectionReason) {
-      // Pavement aggregate texture requirement strictly applies to road defects; structural masonry, bridges, and railways have their own substrate
-      if (isRoadDefect || !context.rejectionReason.includes('road aggregate texture')) {
+      if (defectType === 'garbage_accumulation') {
+        // Garbage accumulation is only rejected if situated on actual vehicle bodywork or chassis
+        if (context.isVehicleSuperstructure || context.isVehicleWheel || context.isVehicleGrille || context.isVehicleWindowOrSeam) {
+          contradictoryEvidence.push('Candidate region is situated on a vehicle structure rather than an outdoor pavement/curb surface.');
+        }
+      } else if (isRoadDefect || !context.rejectionReason.includes('road aggregate texture')) {
         contradictoryEvidence.push(context.rejectionReason);
       }
     }

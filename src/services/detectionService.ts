@@ -129,10 +129,11 @@ export class LocalCvDetectionService implements IDetectionService {
         severityScore: sevResult.score,
         metadata: {
           roadCoveragePct: det.evidence.frameCoveragePct,
-          damageExtentMm: Math.round(det.evidence.areaPixels * 0.8),
-          depthEstimateMm: Math.round(det.evidence.contrastDelta * 1.2),
           surfaceType: validation.sceneType === 'concrete_sidewalk' ? 'concrete' : 'asphalt',
           notes: sevResult.rationale,
+          measurementMode: 'pixel_based_uncalibrated',
+          estimatedPixelArea: det.evidence.areaPixels,
+          damageExtentEstimateLabel: 'Pixel-based extent. Metric mm requires metric camera/LiDAR calibration.',
         },
       };
     });
@@ -144,7 +145,7 @@ export class LocalCvDetectionService implements IDetectionService {
     let operationalState: OperationalDecisionState = 'NO_DAMAGE_DETECTED';
     if (detections.length > 0) {
       const hasHighConfidence = detections.some((d) => d.confidence >= 65);
-      operationalState = hasHighConfidence ? 'DAMAGE_VERIFIED' : 'UNCERTAIN';
+      operationalState = hasHighConfidence ? 'DAMAGE_VERIFIED' : 'UNCERTAIN_REQUIRES_REVIEW';
     }
 
     return {
