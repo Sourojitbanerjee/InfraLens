@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useInfra } from '../../context/InfraContext';
 import { StatCard } from '../common/StatCard';
 import { GisMap } from '../map/GisMap';
@@ -38,7 +39,12 @@ export const CommandCenterView: React.FC = () => {
   const resolvedIssue = issues.find((i) => i.status === 'resolved' && i.resolutionComparison);
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      className="space-y-6 max-w-[1600px] mx-auto px-4 sm:px-6 py-6"
+    >
       {/* P0 Emergency Alert Banner if Active */}
       {emergencyIssue && (
         <div className="p-4 rounded-xl bg-gradient-to-r from-purple-950/90 via-rose-950/90 to-purple-950/90 border border-rose-500/80 shadow-[0_0_20px_rgba(244,63,94,0.35)] flex flex-wrap items-center justify-between gap-4 animate-pulse">
@@ -75,16 +81,16 @@ export const CommandCenterView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-bold font-mono text-white tracking-wide">
-              INFRASTRUCTURE COMMAND CENTER
+            <h1 className="text-xl sm:text-2xl font-bold font-display text-white tracking-tight">
+              Infrastructure Command Center
             </h1>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               LIVE TELEMETRY
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-mono">
-            Metro GIS operations hub • Telling cities what to fix first, why it matters, and who should fix it.
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 font-sans">
+            Metro GIS operations hub · Telling cities what to fix first, why it matters, and who should fix it.
           </p>
         </div>
 
@@ -244,6 +250,6 @@ export const CommandCenterView: React.FC = () => {
           <InfrastructureHealthWidget />
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

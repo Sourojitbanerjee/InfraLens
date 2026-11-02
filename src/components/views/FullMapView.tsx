@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useInfra } from '../../context/InfraContext';
 import { GisMap } from '../map/GisMap';
 import { SeverityIndicator } from '../common/SeverityIndicator';
@@ -60,7 +61,12 @@ export const FullMapView: React.FC = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden bg-[#07090E]">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden bg-[#07090E]"
+    >
       {/* Hierarchical Drilldown Breadcrumb Strip (Rules 3 & 4: City → Ward → Road → Cluster → Issue) */}
       <div className="px-3 sm:px-4 py-2 bg-[#0B0F19] border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs font-mono shrink-0">
         <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar max-w-full">
@@ -453,6 +459,6 @@ export const FullMapView: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

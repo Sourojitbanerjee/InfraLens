@@ -12,7 +12,11 @@ import {
   MapPin, 
   ZoomIn,
   ZoomOut,
-  Route
+  Route,
+  Satellite,
+  Map as MapIcon,
+  Check,
+  AlertCircle
 } from 'lucide-react';
 
 interface GisMapProps {
@@ -177,6 +181,54 @@ const createCustomMarkerIcon = (issue: Issue, isSelected: boolean) => {
   });
 };
 
+const MAPTILER_API_KEY = import.meta.env.VITE_MAPTILER_API_KEY || 'lTDrh4NrGeyVcOMBP4lt';
+
+export type BasemapMode = 'maptiler-dark' | 'maptiler-satellite' | 'maptiler-streets' | 'carto-dark';
+
+interface BasemapOption {
+  id: BasemapMode;
+  name: string;
+  subtitle: string;
+  url: string;
+  attribution: string;
+  maxZoom: number;
+}
+
+const BASEMAP_OPTIONS: Record<BasemapMode, BasemapOption> = {
+  'maptiler-dark': {
+    id: 'maptiler-dark',
+    name: 'MapTiler Dark',
+    subtitle: 'Tactical Dataviz Dark',
+    url: `https://api.maptiler.com/maps/dataviz-dark/256/{z}/{x}/{y}.png?key=${MAPTILER_API_KEY}`,
+    attribution: '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+    maxZoom: 20,
+  },
+  'maptiler-satellite': {
+    id: 'maptiler-satellite',
+    name: 'MapTiler Satellite',
+    subtitle: 'High-Res Aerial Orthophoto',
+    url: `https://api.maptiler.com/maps/satellite/256/{z}/{x}/{y}.jpg?key=${MAPTILER_API_KEY}`,
+    attribution: '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+    maxZoom: 20,
+  },
+  'maptiler-streets': {
+    id: 'maptiler-streets',
+    name: 'MapTiler Streets',
+    subtitle: 'Detailed Civic Road Topology',
+    url: `https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=${MAPTILER_API_KEY}`,
+    attribution: '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+    maxZoom: 20,
+  },
+  'carto-dark': {
+    id: 'carto-dark',
+    name: 'Carto Dark Matter',
+    subtitle: 'Standard Offline Fallback',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+  },
+};
+
 export const GisMap: React.FC<GisMapProps> = ({
   issues: propIssues,
   selectedIssueId,
@@ -203,7 +255,10 @@ export const GisMap: React.FC<GisMapProps> = ({
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showRoads, setShowRoads] = useState(showRoadSegments !== undefined ? showRoadSegments : true);
   const [mapFilter, setMapFilter] = useState<'all' | 'critical' | 'clusters'>('all');
-  const [basemapStyle, setBasemapStyle] = useState<'dark' | 'contrast'>('dark');
+  const [basemapStyle, setBasemapStyle] = useState<BasemapMode>('maptiler-dark');
+  const [showLayerMenu, setShowLayerMenu] = useState(false);
+  const [tileErrorCount, setTileErrorCount] = useState(0);
+  const [usingFallback, setUsingFallback] = useState(false);
 
   // Center coordinate defaults to Metro Central (San Francisco)
   const defaultCenter: [number, number] = [37.7749, -122.4194];
@@ -224,11 +279,29 @@ export const GisMap: React.FC<GisMapProps> = ({
     });
   }, [displayIssues, mapFilter]);
 
-  // Basemap tile URL: CartoDB Dark Matter
-  const tileUrl =
-    basemapStyle === 'dark'
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+  // Active basemap config
+  const activeBasemapConfig = usingFallback
+    ? BASEMAP_OPTIONS['carto-dark']
+    : BASEMAP_OPTIONS[basemapStyle];
+
+  const handleTileError = () => {
+    setTileErrorCount((prev) => {
+      const next = prev + 1;
+      // If MapTiler key throws 4+ tile errors (e.g. key domain restriction on localhost),
+      // seamlessly fall back to Carto Dark so the map never renders blank or broken tiles.
+      if (next >= 4 && !usingFallback && basemapStyle.startsWith('maptiler')) {
+        setUsingFallback(true);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectBasemap = (style: BasemapMode) => {
+    setBasemapStyle(style);
+    setUsingFallback(false);
+    setTileErrorCount(0);
+    setShowLayerMenu(false);
+  };
 
   const mapInstanceRef = useRef<L.Map | null>(null);
 
@@ -339,13 +412,76 @@ export const GisMap: React.FC<GisMapProps> = ({
           <Crosshair className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
 
-        <button
-          onClick={() => setBasemapStyle(basemapStyle === 'dark' ? 'contrast' : 'dark')}
-          className="p-1.5 sm:p-2 rounded-lg bg-[#0E1524]/90 border border-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-colors backdrop-blur-md shadow-xl"
-          title="Toggle Basemap Style"
-        >
-          <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-        </button>
+        {/* Basemap Layer Selector */}
+        <div className="relative">
+          <button
+            onClick={() => setShowLayerMenu(!showLayerMenu)}
+            className={`p-1.5 sm:p-2 rounded-lg border text-xs font-mono transition-colors backdrop-blur-md shadow-xl flex items-center gap-1 ${
+              showLayerMenu
+                ? 'bg-cyan-950 text-cyan-300 border-cyan-500/60 shadow-cyan-950/50'
+                : 'bg-[#0E1524]/90 border-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60'
+            }`}
+            title="Select Basemap Layer (MapTiler Dark, Satellite, Streets)"
+          >
+            <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          </button>
+
+          {/* Layer Selection Dropdown */}
+          {showLayerMenu && (
+            <div className="absolute right-0 top-full mt-2 w-60 sm:w-68 rounded-xl bg-[#090D18]/95 border border-slate-800 shadow-2xl p-2 z-[1100] backdrop-blur-xl font-mono text-xs animate-in fade-in zoom-in-95">
+              <div className="px-2.5 py-1.5 border-b border-slate-800/80 mb-1 flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Basemap Engine</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-mono">
+                  MapTiler Cloud
+                </span>
+              </div>
+              <div className="space-y-1">
+                {(Object.keys(BASEMAP_OPTIONS) as BasemapMode[]).map((key) => {
+                  const opt = BASEMAP_OPTIONS[key];
+                  const isSelected = basemapStyle === key && !usingFallback;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleSelectBasemap(key)}
+                      className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between transition-colors ${
+                        isSelected
+                          ? 'bg-cyan-950/80 text-cyan-300 border border-cyan-500/30'
+                          : 'text-slate-300 hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {key === 'maptiler-satellite' ? (
+                          <Satellite className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        ) : key === 'maptiler-streets' ? (
+                          <MapIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        ) : (
+                          <Layers className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                        )}
+                        <div>
+                          <div className="font-semibold text-[11px]">{opt.name}</div>
+                          <div className="text-[9px] text-slate-500">{opt.subtitle}</div>
+                        </div>
+                      </div>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {usingFallback && (
+                <div className="mt-2 p-2 rounded bg-amber-950/40 border border-amber-500/30 text-[10px] text-amber-300">
+                  <div className="flex items-center gap-1 font-bold">
+                    <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
+                    <span>Domain Restriction Fallback</span>
+                  </div>
+                  <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">
+                    Add your domain to MapTiler Key Settings to activate MapTiler tiles.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Map Legend (Bottom-Left) */}
@@ -371,6 +507,20 @@ export const GisMap: React.FC<GisMapProps> = ({
         </div>
       </div>
 
+      {/* Map Engine Badge (Bottom-Right) */}
+      <div className="absolute bottom-3 right-3 z-[1000] hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#080D18]/90 border border-slate-800/90 backdrop-blur-md text-[10px] font-mono text-slate-300 shadow-xl">
+        <span
+          className={`w-2 h-2 rounded-full ${
+            usingFallback ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'
+          }`}
+        />
+        <span className="font-semibold text-slate-200">
+          {usingFallback ? 'Carto Dark (Fallback)' : `MapTiler: ${activeBasemapConfig.name}`}
+        </span>
+        <span className="text-slate-600">|</span>
+        <span className="text-slate-500 text-[9px]">Key: lTDr...4lt</span>
+      </div>
+
       {/* Actual React-Leaflet Map */}
       <MapContainer
         center={defaultCenter}
@@ -381,8 +531,13 @@ export const GisMap: React.FC<GisMapProps> = ({
         ref={mapInstanceRef}
       >
         <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap'
-          url={tileUrl}
+          key={`${activeBasemapConfig.id}-${usingFallback ? 'fallback' : 'primary'}`}
+          attribution={activeBasemapConfig.attribution}
+          url={activeBasemapConfig.url}
+          maxZoom={activeBasemapConfig.maxZoom}
+          eventHandlers={{
+            tileerror: handleTileError,
+          }}
         />
 
         <MapResizeHandler />

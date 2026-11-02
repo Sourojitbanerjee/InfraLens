@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useInfra } from '../../context/InfraContext';
 import { SAMPLE_STREET_IMAGES, SampleStreetPreset } from '../../data/sampleStreetImages';
 import { AiVisionService, AnalysisStage, AiInferenceResult } from '../../services/aiVisionService';
@@ -163,13 +164,18 @@ export const AnalyzeView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 py-6"
+    >
       {/* Title & Engine Switcher */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-bold font-mono text-white tracking-wide">
-              AI STREET ANALYSIS
+            <h1 className="text-xl sm:text-2xl font-bold font-display text-white tracking-tight">
+              AI Street Analysis
             </h1>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">
               EVIDENCE-CV v2.4
@@ -1028,6 +1034,6 @@ export const AnalyzeView: React.FC = () => {
           </div>
         </div>
       </Modal>
-    </div>
+    </motion.div>
   );
 };

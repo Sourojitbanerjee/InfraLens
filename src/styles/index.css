@@ -11,6 +11,11 @@
     @apply bg-[#07090E] text-slate-100 antialiased font-sans;
     overflow-x: hidden;
   }
+
+  /* Editorial headings default to Space Grotesk */
+  h1, h2, h3 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+  }
 }
 
 /* Custom scrollbar for dark ops dashboard */
@@ -36,10 +41,6 @@
 .leaflet-container {
   background: #07090E !important;
   font-family: inherit !important;
-}
-
-.leaflet-tile {
-  filter: brightness(0.7) invert(1) contrast(2.4) hue-rotate(200deg) saturate(0.3) !important;
 }
 
 .leaflet-control-zoom {
