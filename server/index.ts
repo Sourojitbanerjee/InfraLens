@@ -123,6 +123,111 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // 2.1 Institutions Endpoints
+    if (url.pathname === '/api/v1/institutions' && req.method === 'GET') {
+      const { InstitutionVerificationService } = await import('../src/services/institutionVerificationService');
+      const institutions = InstitutionVerificationService.getAllInstitutions();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ institutions, total: institutions.length, requestId }));
+      return;
+    }
+
+    if (url.pathname === '/api/v1/institutions/register' && req.method === 'POST') {
+      const body = await parseJsonBody(req);
+      const { InstitutionVerificationService } = await import('../src/services/institutionVerificationService');
+      const result = InstitutionVerificationService.registerInstitution(body);
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ...result, requestId }));
+      return;
+    }
+
+    if (url.pathname.startsWith('/api/v1/institutions/') && url.pathname.endsWith('/verify') && req.method === 'PATCH') {
+      const parts = url.pathname.split('/');
+      const instId = parts[4];
+      const body = await parseJsonBody(req);
+      const { InstitutionVerificationService } = await import('../src/services/institutionVerificationService');
+      const updated = InstitutionVerificationService.updateVerificationStatus(instId, body.status, body.adminNotes || 'Reviewed by Platform Admin');
+      if (!updated) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Institution not found', requestId }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ institution: updated, requestId }));
+      return;
+    }
+
+    // 2.2 Work Orders Endpoints
+    if (url.pathname === '/api/v1/work-orders' && req.method === 'GET') {
+      const instId = url.searchParams.get('institutionId') || undefined;
+      const { WorkOrderService } = await import('../src/services/workOrderService');
+      const orders = WorkOrderService.getAllWorkOrders(instId);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ workOrders: orders, total: orders.length, requestId }));
+      return;
+    }
+
+    if (url.pathname === '/api/v1/work-orders' && req.method === 'POST') {
+      const body = await parseJsonBody(req);
+      const { WorkOrderService } = await import('../src/services/workOrderService');
+      const created = WorkOrderService.createWorkOrder(body);
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ workOrder: created, requestId }));
+      return;
+    }
+
+    // 2.3 Spatial Nearby Discovery with Privacy Masking
+    if (url.pathname === '/api/v1/spatial/nearby' && req.method === 'GET') {
+      const lat = parseFloat(url.searchParams.get('latitude') || '28.6139');
+      const lon = parseFloat(url.searchParams.get('longitude') || '77.2090');
+      const radiusMeters = parseInt(url.searchParams.get('radius') || '3000', 10);
+
+      const { WorkOrderService } = await import('../src/services/workOrderService');
+      const allOrders = WorkOrderService.getAllWorkOrders();
+
+      // Haversine formula calculation
+      const nearby = allOrders.map(order => {
+        const dLat = (order.location.latitude - lat) * (Math.PI / 180);
+        const dLon = (order.location.longitude - lon) * (Math.PI / 180);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(lat * (Math.PI / 180)) *
+          Math.cos(order.location.latitude * (Math.PI / 180)) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distanceM = 6371e3 * c;
+
+        // Privacy jitter (~50-100m) for citizen public view
+        const jitteredLat = Math.round(order.location.latitude * 1000) / 1000;
+        const jitteredLon = Math.round(order.location.longitude * 1000) / 1000;
+
+        return {
+          id: order.id,
+          trackingCode: order.trackingCode,
+          title: order.title,
+          category: order.category,
+          severity: order.severity,
+          status: order.status,
+          distanceMeters: Math.round(distanceM),
+          maskedCoordinates: { latitude: jitteredLat, longitude: jitteredLon },
+          address: order.location.address,
+          ward: order.wardName,
+          institutionName: order.institutionName,
+        };
+      }).filter(item => item.distanceMeters <= radiusMeters);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        center: { latitude: lat, longitude: lon },
+        radiusMeters,
+        count: nearby.length,
+        results: nearby,
+        privacyNote: 'Public queries are spatially masked and snapped to protective grid to protect citizen residential privacy.',
+        requestId,
+      }));
+      return;
+    }
+
     // 3. Image Validation Endpoint
     if (url.pathname === '/api/v1/validate' && req.method === 'POST') {
       const body = await parseJsonBody(req);

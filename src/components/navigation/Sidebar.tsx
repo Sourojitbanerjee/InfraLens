@@ -11,7 +11,12 @@ import {
   Activity, 
   Globe, 
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  Shield,
+  Users,
+  Briefcase,
+  Smartphone,
+  ShieldAlert
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -22,12 +27,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile }) => {
   const { currentView, setCurrentView, stats } = useInfra();
 
-  const navItems: { id: AppView; label: string; icon: React.ReactNode; badge?: string | number; badgeVariant?: 'rose' | 'amber' | 'cyan' | 'slate' }[] = [
-    {
-      id: 'landing',
-      label: 'Portal Overview',
-      icon: <Globe className="w-4 h-4" />,
-    },
+  const primaryNavItems: { id: AppView; label: string; icon: React.ReactNode; badge?: string | number; badgeVariant?: 'rose' | 'amber' | 'cyan' | 'slate' | 'emerald' }[] = [
     {
       id: 'dashboard',
       label: 'Command Center',
@@ -36,18 +36,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
       badgeVariant: 'cyan',
     },
     {
-      id: 'analyze',
-      label: 'AI Street Analysis',
-      icon: <Camera className="w-4 h-4" />,
-      badge: 'LIVE',
-      badgeVariant: 'amber',
-    },
-    {
       id: 'map',
       label: 'Infrastructure Map',
       icon: <MapPin className="w-4 h-4" />,
       badge: 'GIS',
       badgeVariant: 'slate',
+    },
+    {
+      id: 'analyze',
+      label: 'AI Street Analysis',
+      icon: <Camera className="w-4 h-4" />,
+      badge: 'LIVE',
+      badgeVariant: 'amber',
     },
     {
       id: 'queue',
@@ -60,6 +60,52 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
       id: 'analytics',
       label: 'Analytics & Intel',
       icon: <BarChart3 className="w-4 h-4" />,
+    },
+  ];
+
+  const civicRoleItems: { id: AppView; label: string; icon: React.ReactNode; badge?: string | number; badgeVariant?: 'rose' | 'amber' | 'cyan' | 'slate' | 'emerald' }[] = [
+    {
+      id: 'citizen-portal',
+      label: 'Citizen Portal',
+      icon: <Shield className="w-4 h-4" />,
+      badge: 'CITIZEN',
+      badgeVariant: 'emerald',
+    },
+    {
+      id: 'chief-inspector',
+      label: 'Chief Field Inspector',
+      icon: <Users className="w-4 h-4" />,
+      badge: 'REVIEW',
+      badgeVariant: 'cyan',
+    },
+    {
+      id: 'supervisor',
+      label: 'Dept Supervisor',
+      icon: <Briefcase className="w-4 h-4" />,
+      badge: 'ORDERS',
+      badgeVariant: 'amber',
+    },
+    {
+      id: 'inspector-mobile',
+      label: 'Field Mobile Inspector',
+      icon: <Smartphone className="w-4 h-4" />,
+      badge: 'GPS',
+      badgeVariant: 'emerald',
+    },
+    {
+      id: 'super-admin',
+      label: 'Super Admin Portal',
+      icon: <ShieldAlert className="w-4 h-4" />,
+      badge: 'GLOBAL',
+      badgeVariant: 'rose',
+    },
+  ];
+
+  const systemItems: { id: AppView; label: string; icon: React.ReactNode }[] = [
+    {
+      id: 'landing',
+      label: 'Platform Overview',
+      icon: <Globe className="w-4 h-4" />,
     },
     {
       id: 'authorities',
@@ -77,6 +123,62 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     setCurrentView(view);
     if (onCloseMobile) onCloseMobile();
   };
+
+  const renderNavGroup = (title: string, items: typeof primaryNavItems) => (
+    <div className="space-y-1">
+      <div className="px-3 mb-1 text-[10px] font-mono uppercase tracking-widest text-slate-500 font-semibold">
+        {title}
+      </div>
+      <nav className="space-y-1">
+        {items.map((item) => {
+          const isActive = currentView === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => handleSelectView(item.id)}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-mono font-medium transition-all group ${
+                isActive
+                  ? 'bg-gradient-to-r from-cyan-950/80 to-slate-900 text-cyan-300 border border-cyan-500/30 shadow-sm shadow-cyan-950/50'
+                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/40 border border-transparent'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span
+                  className={`transition-colors ${
+                    isActive ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'
+                  }`}
+                >
+                  {item.icon}
+                </span>
+                <span className="truncate">{item.label}</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                {item.badge !== undefined && (
+                  <span
+                    className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-semibold ${
+                      item.badgeVariant === 'rose'
+                        ? 'bg-rose-950 text-rose-400 border border-rose-500/30'
+                        : item.badgeVariant === 'amber'
+                        ? 'bg-amber-950 text-amber-300 border border-amber-500/30'
+                        : item.badgeVariant === 'cyan'
+                        ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/30'
+                        : item.badgeVariant === 'emerald'
+                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+                {isActive && <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />}
+              </div>
+            </button>
+          );
+        })}
+      </nav>
+    </div>
+  );
 
   return (
     <>
@@ -109,78 +211,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
           </button>
         </div>
 
-        {/* Navigation list */}
-        <div className="p-3.5 space-y-6 overflow-y-auto flex-1">
-          <div>
-            <div className="px-3 mb-2 text-[10px] font-mono uppercase tracking-widest text-slate-500 font-semibold">
-              Operations & Triage
-            </div>
-            <nav className="space-y-1">
-              {navItems.map((item) => {
-                const isActive = currentView === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleSelectView(item.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-mono font-medium transition-all group ${
-                      isActive
-                        ? 'bg-gradient-to-r from-cyan-950/80 to-slate-900 text-cyan-300 border border-cyan-500/30 shadow-sm shadow-cyan-950/50'
-                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/40 border border-transparent'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`transition-colors ${
-                          isActive ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'
-                        }`}
-                      >
-                        {item.icon}
-                      </span>
-                      <span>{item.label}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      {item.badge !== undefined && (
-                        <span
-                          className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-semibold ${
-                            item.badgeVariant === 'rose'
-                              ? 'bg-rose-950 text-rose-400 border border-rose-500/30'
-                              : item.badgeVariant === 'amber'
-                              ? 'bg-amber-950 text-amber-300 border border-amber-500/30'
-                              : item.badgeVariant === 'cyan'
-                              ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/30'
-                              : 'bg-slate-800 text-slate-400'
-                          }`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                      {isActive && <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />}
-                    </div>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+        {/* Navigation lists */}
+        <div className="p-3.5 space-y-5 overflow-y-auto flex-1">
+          {renderNavGroup('Operations & Command', primaryNavItems)}
+          {renderNavGroup('Citizen & Role Portals', civicRoleItems)}
+          {renderNavGroup('System & Analytics', systemItems as any)}
 
           {/* Quick Municipal Health Summary */}
           <div className="p-3.5 rounded-xl bg-[#0E1524] border border-slate-800 text-xs font-mono">
             <div className="flex items-center justify-between text-slate-300 mb-2 font-semibold">
               <span className="flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                City Index
+                City Health Index
               </span>
               <span className="text-emerald-400">76.4 / 100</span>
             </div>
-            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-2.5">
+            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-2">
               <div
                 className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-indigo-500 h-full rounded-full"
                 style={{ width: '76.4%' }}
               />
             </div>
             <div className="flex justify-between text-[10px] text-slate-500">
-              <span>92 Active</span>
-              <span>86 Resolved</span>
+              <span>NDMC & BMC Connected</span>
+              <span className="text-emerald-400">92.4% SLA</span>
             </div>
           </div>
         </div>
@@ -192,7 +246,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
             <span className="text-emerald-400 font-bold">ONLINE</span>
           </div>
           <div className="text-[10px] text-slate-600 mt-1">
-            Build 2026.10-ALPHA • PostGIS/Edge Ready
+            Build 2026.11 • PostGIS Multi-Tenant
           </div>
         </div>
       </aside>

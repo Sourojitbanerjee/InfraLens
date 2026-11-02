@@ -1,3 +1,5 @@
+import { InfrastructureCategory, Severity, Priority, ResolutionStatus } from './infrastructure';
+
 export type AppView = 
   | 'landing'
   | 'dashboard'
@@ -6,7 +8,12 @@ export type AppView =
   | 'queue'
   | 'analytics'
   | 'authorities'
-  | 'activity';
+  | 'activity'
+  | 'citizen-portal'
+  | 'chief-inspector'
+  | 'supervisor'
+  | 'inspector-mobile'
+  | 'super-admin';
 
 export interface FilterState {
   searchQuery: string;
