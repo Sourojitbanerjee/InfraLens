@@ -12,6 +12,11 @@ import { PriorityQueueView } from './components/views/PriorityQueueView';
 import { AnalyticsView } from './components/views/AnalyticsView';
 import { AuthoritiesView } from './components/views/AuthoritiesView';
 import { ActivityLogView } from './components/views/ActivityLogView';
+import { CitizenPortalView } from './components/citizen/CitizenPortalView';
+import { ChiefInspectorDashboardView } from './components/views/ChiefInspectorDashboardView';
+import { DepartmentSupervisorDashboardView } from './components/views/DepartmentSupervisorDashboardView';
+import { FieldInspectorMobileView } from './components/views/FieldInspectorMobileView';
+import { SuperAdminDashboardView } from './components/views/SuperAdminDashboardView';
 import { IssueDetailDrawer } from './components/dashboard/IssueDetailDrawer';
 import { CommandPalette } from './components/common/CommandPalette';
 import { ToastContainer } from './components/common/ToastContainer';
@@ -77,6 +82,11 @@ const AppContent: React.FC = () => {
             {currentView === 'analytics' && <AnalyticsView />}
             {currentView === 'authorities' && <AuthoritiesView />}
             {currentView === 'activity' && <ActivityLogView />}
+            {currentView === 'citizen-portal' && <CitizenPortalView />}
+            {currentView === 'chief-inspector' && <ChiefInspectorDashboardView />}
+            {currentView === 'supervisor' && <DepartmentSupervisorDashboardView />}
+            {currentView === 'inspector-mobile' && <FieldInspectorMobileView />}
+            {currentView === 'super-admin' && <SuperAdminDashboardView />}
           </main>
         </div>
       )}

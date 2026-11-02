@@ -235,4 +235,33 @@ export class ClusteringEngine {
 
     return { clusters: allClusters, updatedIssues };
   }
+
+  /**
+   * Determine if a newly submitted report is a geographic and categorical duplicate
+   * of an existing report within a specified radius (default 80 meters)
+   */
+  static detectDuplicate(
+    candidate: { latitude: number; longitude: number; category: string },
+    existingIssues: Issue[],
+    thresholdMeters: number = 80
+  ): { isDuplicate: boolean; matchedIssue?: Issue; distanceMeters?: number } {
+    for (const issue of existingIssues) {
+      if (issue.category === candidate.category) {
+        const dist = GisEngine.calculateDistanceMeters(
+          candidate.latitude,
+          candidate.longitude,
+          issue.location.latitude,
+          issue.location.longitude
+        );
+        if (dist <= thresholdMeters) {
+          return {
+            isDuplicate: true,
+            matchedIssue: issue,
+            distanceMeters: Math.round(dist),
+          };
+        }
+      }
+    }
+    return { isDuplicate: false };
+  }
 }

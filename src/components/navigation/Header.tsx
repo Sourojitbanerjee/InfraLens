@@ -1,26 +1,92 @@
 import React, { useState, useEffect } from 'react';
 import { useInfra } from '../../context/InfraContext';
+import { AppView } from '../../types/navigation';
 import { 
   Bell, 
   Search, 
-  Terminal, 
   Radio, 
   ShieldAlert, 
   User, 
   ChevronDown, 
-  ExternalLink,
-  Flame,
-  CheckCircle,
-  Menu,
-  X,
-  Sparkles
+  Flame, 
+  CheckCircle, 
+  Menu, 
+  X, 
+  Sparkles,
+  Languages,
+  Building2,
+  Shield,
+  Briefcase,
+  Users,
+  Smartphone
 } from 'lucide-react';
+import { SUPPORTED_LANGUAGES, LanguageOption } from '../../i18n/translations';
 
 interface HeaderProps {
   onToggleMobileMenu?: () => void;
   isMobileMenuOpen?: boolean;
   onStartDemo?: () => void;
 }
+
+interface OfficialIdentity {
+  name: string;
+  roleTitle: string;
+  institution: string;
+  avatarText: string;
+  targetView: AppView;
+  badgeVariant: 'cyan' | 'amber' | 'emerald' | 'purple';
+}
+
+const IDENTITIES: Record<string, OfficialIdentity> = {
+  director: {
+    name: 'Dr. Rameshwar Sharma, IAS',
+    roleTitle: 'Director of Municipal Operations',
+    institution: 'New Delhi Municipal Council (NDMC)',
+    avatarText: 'RS',
+    targetView: 'dashboard',
+    badgeVariant: 'cyan',
+  },
+  chief_inspector: {
+    name: 'Er. Arvind Mehta',
+    roleTitle: 'Chief Field Inspector',
+    institution: 'NDMC Civil Rapid Response Squad',
+    avatarText: 'AM',
+    targetView: 'chief-inspector',
+    badgeVariant: 'cyan',
+  },
+  supervisor: {
+    name: 'Er. Praveen Saxena',
+    roleTitle: 'Department Operations Supervisor',
+    institution: 'Roads & Bridges Maintenance Division',
+    avatarText: 'PS',
+    targetView: 'supervisor',
+    badgeVariant: 'amber',
+  },
+  field_inspector: {
+    name: 'Vikram Rawat',
+    roleTitle: 'Senior Field Inspector (Lead Alpha)',
+    institution: 'NDMC Mobile Ground Unit Alpha',
+    avatarText: 'VR',
+    targetView: 'inspector-mobile',
+    badgeVariant: 'emerald',
+  },
+  citizen: {
+    name: 'Pooja Sharma',
+    roleTitle: 'Verified Citizen Reporter',
+    institution: 'New Delhi Resident (Ward 1)',
+    avatarText: 'P',
+    targetView: 'citizen-portal',
+    badgeVariant: 'emerald',
+  },
+  super_admin: {
+    name: 'System Administrator',
+    roleTitle: 'Platform Super Administrator',
+    institution: 'InfraLens Multi-Tenant Cloud Ops',
+    avatarText: 'SA',
+    targetView: 'super-admin',
+    badgeVariant: 'purple',
+  },
+};
 
 export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenuOpen, onStartDemo }) => {
   const { 
@@ -39,7 +105,11 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
   const [currentTime, setCurrentTime] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [activeRole, setActiveRole] = useState<'Director of Operations' | 'Field Chief Inspector' | 'Public Works Dispatch'>('Director of Operations');
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<LanguageOption>(SUPPORTED_LANGUAGES[0]);
+  const [activeIdentityKey, setActiveIdentityKey] = useState<string>('director');
+
+  const activeIdentity = IDENTITIES[activeIdentityKey];
 
   useEffect(() => {
     const updateClock = () => {
@@ -59,6 +129,12 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
     return () => clearInterval(interval);
   }, []);
 
+  const handleSwitchIdentity = (key: string) => {
+    setActiveIdentityKey(key);
+    setShowProfileMenu(false);
+    setCurrentView(IDENTITIES[key].targetView);
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-[#080B13]/90 backdrop-blur-md border-b border-slate-800/80 px-2.5 sm:px-4 lg:px-6 h-16 flex items-center justify-between">
       {/* Left: Brand & Mobile Toggle */}
@@ -77,39 +153,32 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
         >
           <div className="relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-cyan-950/70 border border-cyan-500/40 text-cyan-400 shadow-sm shadow-cyan-500/20 group-hover:border-cyan-400 transition-colors shrink-0">
             <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-pulse" />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#080B13]" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-[#080B13]" />
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="font-extrabold tracking-wider text-slate-100 text-sm sm:text-base font-mono">
                 INFRALENS
               </span>
-              <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase bg-cyan-950/80 border border-cyan-800/60 px-1.5 py-0.2 rounded hidden sm:inline-block">
-                OPS v1.0
+              <span className="text-[10px] font-mono tracking-widest text-emerald-400 uppercase bg-emerald-950/80 border border-emerald-800/60 px-1.5 py-0.2 rounded hidden sm:inline-block">
+                CIVIC OS 2.0
               </span>
             </div>
             <span className="text-[10px] text-slate-400 font-mono tracking-tight hidden md:inline">
-              URBAN INFRASTRUCTURE INTELLIGENCE
+              MUNICIPAL OPERATIONS & CITIZEN INTELLIGENCE
             </span>
           </div>
         </div>
 
-        {/* Global Critical / P0 Emergency State Pill */}
-        <div className="hidden xl:flex items-center gap-2 ml-6 pl-6 border-l border-slate-800">
-          {stats.p0Emergency > 0 ? (
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-950/80 border border-rose-500 text-rose-300 text-xs font-mono animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.4)]">
-              <Flame className="w-3.5 h-3.5 text-rose-400" />
-              <span>{stats.p0Emergency} P0 EMERGENCY</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-950/30 border border-rose-500/30 text-rose-300 text-xs font-mono">
-              <Flame className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
-              <span>{stats.critical} CRITICAL ISSUES</span>
-            </div>
-          )}
+        {/* Global Critical State Capsule */}
+        <div className="hidden xl:flex items-center gap-2 ml-4 pl-4 border-l border-slate-800">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs font-mono">
+            <Flame className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+            <span>{stats.critical} CRITICAL DEFECTS</span>
+          </div>
           <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>REALTIME SYNC</span>
+            <span>NDMC / BMC SYNC</span>
           </div>
         </div>
       </div>
@@ -122,7 +191,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
         >
           <div className="flex items-center gap-2.5">
             <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-            <span>Search issues, wards, coordinates...</span>
+            <span>Search defects, work orders, wards...</span>
           </div>
           <kbd className="flex items-center gap-1 text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-300 border border-slate-700">
             <span>⌘</span>
@@ -132,27 +201,52 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
-        {/* Live Clock */}
-        <div className="hidden md:flex flex-col items-end mr-1 text-right">
-          <span className="font-mono text-xs font-medium text-slate-200 tracking-wider">
-            {currentTime || '00:00:00 UTC'}
-          </span>
-          <span className="text-[10px] font-mono text-cyan-400 uppercase">
-            SYSTEM ONLINE
-          </span>
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        {/* Multilingual Selector */}
+        <div className="relative">
+          <button
+            onClick={() => {
+              setShowLanguageMenu(!showLanguageMenu);
+              setShowProfileMenu(false);
+              setShowNotifications(false);
+            }}
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-mono text-slate-300"
+            title="Switch Language"
+          >
+            <Languages className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">{selectedLanguage.nativeName}</span>
+            <ChevronDown className="w-3 h-3 text-slate-500" />
+          </button>
+
+          {showLanguageMenu && (
+            <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[#0B0F19] border border-slate-800 shadow-2xl z-50 p-1.5 text-xs font-mono">
+              <div className="px-2.5 py-1.5 text-[10px] uppercase text-slate-500 font-semibold border-b border-slate-800 mb-1">
+                9 Indian Languages
+              </div>
+              <div className="max-h-60 overflow-y-auto space-y-0.5">
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => {
+                      setSelectedLanguage(lang);
+                      setShowLanguageMenu(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between ${
+                      selectedLanguage.code === lang.code
+                        ? 'bg-emerald-500/20 text-emerald-400 font-bold'
+                        : 'text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    <span>{lang.nativeName}</span>
+                    <span className="text-[10px] text-slate-500 uppercase">{lang.code}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Command Palette Mobile Button */}
-        <button
-          onClick={() => setIsCommandPaletteOpen(true)}
-          className="md:hidden p-1.5 sm:p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition-colors"
-          title="Search (CMD+K)"
-        >
-          <Search className="w-4 h-4" />
-        </button>
-
-        {/* 2-Minute Demo Tour Launch Button (Rule 19) */}
+        {/* 2-Minute Demo Tour Launch Button */}
         {onStartDemo && (
           <button
             onClick={onStartDemo}
@@ -168,7 +262,11 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
         {/* Notification Center */}
         <div className="relative">
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={() => {
+              setShowNotifications(!showNotifications);
+              setShowProfileMenu(false);
+              setShowLanguageMenu(false);
+            }}
             className="relative p-1.5 sm:p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800/80 transition-colors"
             title="Notifications"
           >
@@ -178,9 +276,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
             )}
           </button>
 
-          {/* Notifications Flyout */}
           {showNotifications && (
-            <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:absolute sm:right-0 sm:top-auto mt-2 sm:w-96 rounded-xl bg-[#0B0F19] border border-slate-800 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+            <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:absolute sm:right-0 sm:top-auto mt-2 sm:w-96 rounded-xl bg-[#0B0F19] border border-slate-800 shadow-2xl z-50 overflow-hidden">
               <div className="p-3.5 border-b border-slate-800 flex items-center justify-between bg-[#0E1524]">
                 <div className="flex items-center gap-2">
                   <ShieldAlert className="w-4 h-4 text-cyan-400" />
@@ -188,14 +285,12 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
                     Incident Dispatch Log
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={clearAllNotifications}
-                    className="text-[11px] text-cyan-400 hover:underline font-mono"
-                  >
-                    Clear All
-                  </button>
-                </div>
+                <button
+                  onClick={clearAllNotifications}
+                  className="text-[11px] text-cyan-400 hover:underline font-mono"
+                >
+                  Clear All
+                </button>
               </div>
 
               <div className="max-h-80 overflow-y-auto divide-y divide-slate-800/60 p-1">
@@ -204,9 +299,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
                     key={notif.id}
                     onClick={() => {
                       markNotificationRead(notif.id);
-                      if (issues.length > 0) {
-                        openDetailDrawer(issues[0]);
-                      }
+                      if (issues.length > 0) openDetailDrawer(issues[0]);
                       setShowNotifications(false);
                     }}
                     className={`p-3 rounded-lg cursor-pointer transition-colors ${
@@ -214,16 +307,10 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-xs font-semibold text-slate-200">
-                        {notif.title}
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-mono shrink-0">
-                        {notif.timestamp}
-                      </span>
+                      <span className="text-xs font-semibold text-slate-200">{notif.title}</span>
+                      <span className="text-[10px] text-slate-500 font-mono shrink-0">{notif.timestamp}</span>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                      {notif.message}
-                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{notif.message}</p>
                   </div>
                 ))}
               </div>
@@ -231,46 +318,68 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
           )}
         </div>
 
-        {/* Profile / Role Selector */}
+        {/* Dynamic RBAC Operator Identity & Role Switcher */}
         <div className="relative">
           <button
-            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            onClick={() => {
+              setShowProfileMenu(!showProfileMenu);
+              setShowNotifications(false);
+              setShowLanguageMenu(false);
+            }}
             className="flex items-center gap-2 pl-2 pr-2.5 py-1.5 rounded-lg bg-[#0E1524] border border-slate-800 hover:border-slate-700 text-xs font-mono text-slate-300 transition-colors"
           >
-            <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">
-              OP
+            <div className={`w-6 h-6 rounded-md flex items-center justify-center text-slate-950 text-[10px] font-bold ${
+              activeIdentity.badgeVariant === 'purple' ? 'bg-purple-400' :
+              activeIdentity.badgeVariant === 'emerald' ? 'bg-emerald-400' :
+              activeIdentity.badgeVariant === 'amber' ? 'bg-amber-400' : 'bg-cyan-400'
+            }`}>
+              {activeIdentity.avatarText}
             </div>
             <div className="hidden lg:flex flex-col text-left">
               <span className="text-[11px] font-semibold text-slate-200 leading-tight">
-                Cmdr. S. Vance
+                {activeIdentity.name}
               </span>
-              <span className="text-[9px] text-cyan-400 truncate max-w-[120px]">
-                {activeRole}
+              <span className="text-[9px] text-cyan-400 truncate max-w-[130px]">
+                {activeIdentity.roleTitle}
               </span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-0.5" />
           </button>
 
           {showProfileMenu && (
-            <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:absolute sm:right-0 sm:top-auto mt-2 sm:w-64 rounded-xl bg-[#0B0F19] border border-slate-800 shadow-2xl z-50 p-2 text-xs font-mono animate-in fade-in slide-in-from-top-2">
-              <div className="px-3 py-2 border-b border-slate-800 mb-1">
-                <div className="text-slate-300 font-semibold">Active Command Profile</div>
-                <div className="text-[11px] text-slate-500">Department of Civic Analytics</div>
+            <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:absolute sm:right-0 sm:top-auto mt-2 sm:w-80 rounded-xl bg-[#0B0F19] border border-slate-800 shadow-2xl z-50 p-2.5 text-xs font-mono">
+              <div className="px-3 py-2 border-b border-slate-800 mb-2">
+                <div className="text-slate-200 font-semibold">{activeIdentity.name}</div>
+                <div className="text-[10px] text-slate-400">{activeIdentity.institution}</div>
               </div>
+
+              <div className="text-[10px] uppercase text-slate-500 font-semibold px-2 mb-1">
+                Switch Operational Persona & Portal:
+              </div>
+
               <div className="space-y-1">
-                {(['Director of Operations', 'Field Chief Inspector', 'Public Works Dispatch'] as const).map((role) => (
+                {[
+                  { key: 'director', label: 'Director of Operations', sub: 'NDMC Command Center' },
+                  { key: 'citizen', label: 'Public Citizen (Pooja)', sub: '10-Step Reporting Portal' },
+                  { key: 'chief_inspector', label: 'Chief Field Inspector', sub: 'Squad & Evidence Approval' },
+                  { key: 'supervisor', label: 'Dept Supervisor', sub: 'Roads & Bridges Orders' },
+                  { key: 'field_inspector', label: 'Field Mobile Inspector', sub: 'GPS Check-in & Camera' },
+                  { key: 'super_admin', label: 'InfraLens Super Admin', sub: 'Multi-Tenant Onboarding' },
+                ].map((item) => (
                   <button
-                    key={role}
-                    onClick={() => {
-                      setActiveRole(role);
-                      setShowProfileMenu(false);
-                    }}
-                    className={`w-full text-left px-3 py-1.5 rounded-md flex items-center justify-between ${
-                      activeRole === role ? 'bg-cyan-950/60 text-cyan-300 font-semibold' : 'text-slate-400 hover:bg-slate-800/60'
+                    key={item.key}
+                    onClick={() => handleSwitchIdentity(item.key)}
+                    className={`w-full text-left px-3 py-2 rounded-lg flex items-center justify-between transition-all ${
+                      activeIdentityKey === item.key
+                        ? 'bg-cyan-950/70 border border-cyan-500/30 text-cyan-300 font-semibold'
+                        : 'text-slate-400 hover:bg-slate-800/60'
                     }`}
                   >
-                    <span>{role}</span>
-                    {activeRole === role && <CheckCircle className="w-3 h-3 text-cyan-400" />}
+                    <div>
+                      <div className="text-xs text-white">{item.label}</div>
+                      <div className="text-[10px] text-slate-500">{item.sub}</div>
+                    </div>
+                    {activeIdentityKey === item.key && <CheckCircle className="w-4 h-4 text-cyan-400 shrink-0" />}
                   </button>
                 ))}
               </div>
