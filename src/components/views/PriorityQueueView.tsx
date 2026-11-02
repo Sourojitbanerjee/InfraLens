@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useInfra } from '../../context/InfraContext';
 import { Badge } from '../common/Badge';
 import { FilterBar } from '../common/FilterBar';
@@ -73,13 +74,18 @@ export const PriorityQueueView: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 py-6"
+    >
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-bold font-mono text-white tracking-wide">
-              TACTICAL PRIORITY QUEUE
+            <h1 className="text-xl sm:text-2xl font-bold font-display text-white tracking-tight">
+              Tactical Priority Queue
             </h1>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-500/40 font-bold">
               {filteredIssues.length} ACTIVE WORK ORDERS
@@ -400,6 +406,6 @@ export const PriorityQueueView: React.FC = () => {
           </>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 };

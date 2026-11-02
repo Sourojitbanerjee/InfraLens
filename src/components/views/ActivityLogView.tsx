@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useInfra } from '../../context/InfraContext';
 import { SeverityIndicator } from '../common/SeverityIndicator';
 import { Badge } from '../common/Badge';
@@ -100,12 +101,17 @@ export const ActivityLogView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      className="space-y-6 max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-6"
+    >
       {/* Title & Mode Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-800">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-lg sm:text-2xl font-bold font-mono text-white tracking-wide">
+            <h1 className="text-lg sm:text-2xl font-bold font-display text-white tracking-tight">
               OPERATIONAL TIMELINE & AUDIT FEED
             </h1>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">
@@ -296,6 +302,6 @@ export const ActivityLogView: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };

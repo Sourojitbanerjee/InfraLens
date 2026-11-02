@@ -8,7 +8,12 @@ export interface ClusteringOptions {
 
 export class ClusteringEngine {
   /**
-   * Run DBSCAN spatial clustering over an array of issues
+   * Run DBSCAN spatial clustering over an array of issues.
+   * Issues that already carry a pre-assigned clusterId are preserved
+   * and synthesized into DBSCANCluster records even when geographic
+   * DBSCAN wouldn't reach minPoints — this ensures mock data with
+   * known cluster IDs (CL-001 through CL-005) always produces
+   * matching cluster objects visible in the GIS map and demo tour.
    */
   static clusterIssues(
     issues: Issue[],
@@ -17,13 +22,93 @@ export class ClusteringEngine {
     const eps = options.epsilonMeters ?? 400;
     const minPts = options.minPoints ?? 3;
 
+    // ── Phase 1: honour pre-assigned cluster IDs ────────────────────────
+    const preGrouped = new Map<string, Issue[]>();
+    const unassigned: Issue[] = [];
+    for (const issue of issues) {
+      if (issue.clusterId) {
+        const group = preGrouped.get(issue.clusterId) ?? [];
+        group.push(issue);
+        preGrouped.set(issue.clusterId, group);
+      } else {
+        unassigned.push(issue);
+      }
+    }
+
+    const preClusters: DBSCANCluster[] = [];
+    const preClusterMap = new Map<string, string>(); // issueId → clusterId
+
+    for (const [clusterId, members] of preGrouped) {
+      const avgLat =
+        members.reduce((acc, m) => acc + m.location.latitude, 0) / members.length;
+      const avgLon =
+        members.reduce((acc, m) => acc + m.location.longitude, 0) / members.length;
+
+      let maxRadius = 0;
+      for (const m of members) {
+        const dist = GisEngine.calculateDistanceMeters(
+          avgLat, avgLon,
+          m.location.latitude, m.location.longitude
+        );
+        if (dist > maxRadius) maxRadius = dist;
+      }
+      // Respect original clusterRadiusMeters when specified
+      const representativeRadius = Math.max(
+        eps,
+        maxRadius,
+        members[0].clusterRadiusMeters ?? 0
+      );
+
+      const maxSeverityScore = Math.max(...members.map((m) => m.severityScore));
+      let dominantSeverity: Severity = 'moderate';
+      if (maxSeverityScore > 80) dominantSeverity = 'critical';
+      else if (maxSeverityScore > 60) dominantSeverity = 'high';
+      else if (maxSeverityScore <= 30) dominantSeverity = 'healthy';
+
+      const catCounts: Record<string, number> = {};
+      for (const m of members) {
+        catCounts[m.category] = (catCounts[m.category] || 0) + 1;
+      }
+      let dominantCat = members[0].category;
+      let highestCatCount = 0;
+      for (const [cat, count] of Object.entries(catCounts)) {
+        if (count > highestCatCount) {
+          highestCatCount = count;
+          dominantCat = cat as any;
+        }
+      }
+
+      const clusterObj: DBSCANCluster = {
+        clusterId,
+        name: `${members[0].location.address} Cluster`,
+        issueType: dominantCat,
+        reportCount: members.reduce((acc, m) => acc + (m.clusterCount || 1), 0),
+        radiusMeters: Math.round(representativeRadius),
+        center: {
+          latitude: Number(avgLat.toFixed(5)),
+          longitude: Number(avgLon.toFixed(5)),
+        },
+        severityScore: maxSeverityScore,
+        dominantSeverity,
+        status: members.some((m) => m.status === 'in_progress')
+          ? 'in_progress'
+          : members.some((m) => m.status === 'resolved')
+          ? 'resolved'
+          : 'detected',
+        issueIds: members.map((m) => m.id),
+      };
+
+      preClusters.push(clusterObj);
+      members.forEach((m) => preClusterMap.set(m.id, clusterId));
+    }
+
+    // ── Phase 2: DBSCAN over unassigned issues ───────────────────────────
     const visited = new Set<string>();
     const clustered = new Set<string>();
-    const clusters: DBSCANCluster[] = [];
+    const dynamicClusters: DBSCANCluster[] = [];
 
-    // Helper: find epsilon neighbors for an issue
-    const getNeighbors = (target: Issue): Issue[] => {
-      return issues.filter(
+    const getNeighbors = (target: Issue): Issue[] =>
+      unassigned.filter(
         (other) =>
           GisEngine.calculateDistanceMeters(
             target.location.latitude,
@@ -32,18 +117,17 @@ export class ClusteringEngine {
             other.location.longitude
           ) <= eps
       );
-    };
 
-    let clusterCounter = 1;
+    // Start counter beyond pre-cluster range so IDs don't collide
+    let clusterCounter = preGrouped.size + 1;
 
-    for (const issue of issues) {
+    for (const issue of unassigned) {
       if (visited.has(issue.id)) continue;
       visited.add(issue.id);
 
       const neighbors = getNeighbors(issue);
 
       if (neighbors.length >= minPts) {
-        // Expand Cluster
         const clusterId = `CL-${String(clusterCounter).padStart(3, '0')}`;
         clusterCounter++;
 
@@ -72,7 +156,6 @@ export class ClusteringEngine {
           }
         }
 
-        // Calculate centroid
         const avgLat =
           clusterMembers.reduce((acc, m) => acc + m.location.latitude, 0) /
           clusterMembers.length;
@@ -80,26 +163,21 @@ export class ClusteringEngine {
           clusterMembers.reduce((acc, m) => acc + m.location.longitude, 0) /
           clusterMembers.length;
 
-        // Calculate max radius in metres
         let maxRadius = eps;
         for (const m of clusterMembers) {
           const dist = GisEngine.calculateDistanceMeters(
-            avgLat,
-            avgLon,
-            m.location.latitude,
-            m.location.longitude
+            avgLat, avgLon,
+            m.location.latitude, m.location.longitude
           );
           if (dist > maxRadius) maxRadius = dist;
         }
 
-        // Aggregate severity (highest severity score in the cluster)
         const maxSeverityScore = Math.max(...clusterMembers.map((m) => m.severityScore));
         let dominantSeverity: Severity = 'moderate';
         if (maxSeverityScore > 80) dominantSeverity = 'critical';
         else if (maxSeverityScore > 60) dominantSeverity = 'high';
         else if (maxSeverityScore <= 30) dominantSeverity = 'healthy';
 
-        // Dominant category
         const catCounts: Record<string, number> = {};
         for (const m of clusterMembers) {
           catCounts[m.category] = (catCounts[m.category] || 0) + 1;
@@ -133,24 +211,28 @@ export class ClusteringEngine {
           issueIds: clusterMembers.map((m) => m.id),
         };
 
-        clusters.push(clusterObj);
+        dynamicClusters.push(clusterObj);
+        clusterMembers.forEach((m) => preClusterMap.set(m.id, clusterId));
       }
     }
 
-    // Map cluster data back to issues
+    // ── Phase 3: merge results and update issues ──────────────────────────
+    const allClusters = [...preClusters, ...dynamicClusters];
+
     const updatedIssues = issues.map((issue) => {
-      const parentCluster = clusters.find((c) => c.issueIds.includes(issue.id));
-      if (parentCluster) {
+      const resolvedClusterId = preClusterMap.get(issue.id);
+      if (resolvedClusterId) {
+        const parentCluster = allClusters.find((c) => c.clusterId === resolvedClusterId);
         return {
           ...issue,
-          clusterId: parentCluster.clusterId,
-          clusterRadiusMeters: parentCluster.radiusMeters,
-          clusterCount: Math.max(issue.clusterCount ?? 1, parentCluster.reportCount),
+          clusterId: resolvedClusterId,
+          clusterRadiusMeters: parentCluster?.radiusMeters ?? issue.clusterRadiusMeters,
+          clusterCount: Math.max(issue.clusterCount ?? 1, parentCluster?.reportCount ?? 1),
         };
       }
       return issue;
     });
 
-    return { clusters, updatedIssues };
+    return { clusters: allClusters, updatedIssues };
   }
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useInfra } from '../../context/InfraContext';
 import { 
   Search, 
@@ -336,15 +337,23 @@ export const CommandPalette: React.FC = () => {
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-start justify-center p-4 pt-16 sm:pt-24 text-center">
         {/* Backdrop */}
-        <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-md"
           onClick={() => setIsCommandPaletteOpen(false)}
           aria-hidden="true"
         />
 
         {/* Palette Dialog */}
-        <div
-          className="relative transform overflow-hidden rounded-2xl bg-[#090D17] border border-cyan-500/20 text-left shadow-2xl transition-all w-full max-w-2xl z-10 shadow-cyan-950/40"
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: -10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: -10 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          className="relative overflow-hidden rounded-2xl bg-[#090D17] border border-cyan-500/25 text-left shadow-2xl w-full max-w-2xl z-10 shadow-cyan-950/40"
           role="dialog"
           aria-modal="true"
         >
@@ -423,7 +432,7 @@ export const CommandPalette: React.FC = () => {
             <span className="sm:hidden text-slate-500">Tap to select • ESC to close</span>
             <span className="text-cyan-400/80">InfraLens OS v1.0</span>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
