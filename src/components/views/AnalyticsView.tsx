@@ -110,9 +110,9 @@ export const AnalyticsView: React.FC = () => {
           <div>
             <div className="text-[10px] font-mono uppercase text-rose-400 font-bold">Density Outlier</div>
             <p className="text-xs text-slate-200 font-mono font-medium mt-0.5">
-              Ward 17 has the highest unresolved issue density.
+              {cityHealth?.worstPerformingWard?.name || 'Ward 1 — Connaught Place & Barakhamba'} has the highest unresolved issue density.
             </p>
-            <div className="text-[10px] text-slate-500 font-mono mt-1">4.8 reports / km² above metro median</div>
+            <div className="text-[10px] text-slate-500 font-mono mt-1">Focus zone for municipal rapid repair brigades</div>
           </div>
         </div>
 

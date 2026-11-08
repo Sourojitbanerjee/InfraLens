@@ -8,7 +8,8 @@ import {
   ResolutionStatus, 
   AuditEvent, 
   DBSCANCluster,
-  CityHealthMetrics
+  CityHealthMetrics,
+  CreateIssueInput
 } from '../types/infrastructure';
 import { GisEngine } from './gisEngine';
 import { ClusteringEngine } from './clusteringEngine';
@@ -23,7 +24,7 @@ export interface IInfrastructureService {
   getIssueById(id: string): Promise<Issue | null>;
   updateIssueStatus(id: string, status: ResolutionStatus, notes?: string, actor?: string): Promise<Issue>;
   assignAuthority(issueId: string, authorityId: string): Promise<Issue>;
-  createIssue(issue: Omit<Issue, 'id' | 'issueCode' | 'createdAt' | 'updatedAt' | 'lifecycle'>): Promise<Issue>;
+  createIssue(issue: CreateIssueInput): Promise<Issue>;
   getAuthorities(): Promise<Authority[]>;
   getAnalyticsSummary(): Promise<AnalyticsSummary>;
   getCityHealthMetrics(): Promise<CityHealthMetrics>;
@@ -245,7 +246,7 @@ class InfrastructureServiceImpl implements IInfrastructureService {
    * IMAGE -> CV -> DETECTION -> SEVERITY -> GPS -> GIS -> CLUSTERING -> IMPACT -> PRIORITY -> AUTHORITY -> LIFECYCLE
    */
   async createIssue(
-    issueData: Omit<Issue, 'id' | 'issueCode' | 'createdAt' | 'updatedAt' | 'lifecycle'>
+    issueData: CreateIssueInput
   ): Promise<Issue> {
     const now = new Date().toISOString();
     const randomCode = `INF-2026-${Math.floor(1000 + Math.random() * 9000)}`;

@@ -14,6 +14,7 @@
     "ml-server": ".venv/bin/python3 server/ml_inference_service.py --serve"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
     "clsx": "^2.1.1",
     "framer-motion": "^14.9.0",
     "gsap": "^3.15.0",

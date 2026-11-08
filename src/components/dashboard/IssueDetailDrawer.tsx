@@ -20,7 +20,10 @@ import {
   History,
   CheckCircle,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Upload,
+  Camera,
+  Loader2
 } from 'lucide-react';
 
 export const IssueDetailDrawer: React.FC = () => {
@@ -35,9 +38,13 @@ export const IssueDetailDrawer: React.FC = () => {
   } = useInfra();
 
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isResolutionModalOpen, setIsResolutionModalOpen] = useState(false);
   const [selectedAuthorityId, setSelectedAuthorityId] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [showFactorDetail, setShowFactorDetail] = useState(false);
+  const [afterImageUrl, setAfterImageUrl] = useState('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80');
+  const [resolutionNotes, setResolutionNotes] = useState('Full depth asphalt reclamation, binder layer injection, and high-friction seal coat applied. Structural integrity verified compliant.');
+  const [certifyingOfficer, setCertifyingOfficer] = useState('Er. R. K. Singhania (Chief Road Engineer)');
 
   if (!selectedIssue) return null;
 
@@ -47,10 +54,19 @@ export const IssueDetailDrawer: React.FC = () => {
     setIsUpdatingStatus(false);
   };
 
-  const handleMarkResolved = async () => {
+  const handleOpenResolutionModal = () => {
+    setIsResolutionModalOpen(true);
+  };
+
+  const handleConfirmResolution = async () => {
     setIsUpdatingStatus(true);
-    await updateIssueStatus(selectedIssue.id, 'resolved', 'Pavement leveled and verified compliant');
+    await updateIssueStatus(
+      selectedIssue.id, 
+      'resolved', 
+      `Verified repair completed by ${certifyingOfficer}. Notes: ${resolutionNotes}`
+    );
     setIsUpdatingStatus(false);
+    setIsResolutionModalOpen(false);
   };
 
   const handleConfirmAssignment = async () => {
@@ -428,21 +444,110 @@ export const IssueDetailDrawer: React.FC = () => {
             </button>
           </div>
 
-          {/* Quick Resolution Button */}
+          {/* Resolution Verification Button */}
           {selectedIssue.status !== 'resolved' && (
             <div className="pt-2">
               <button
-                onClick={handleMarkResolved}
+                onClick={handleOpenResolutionModal}
                 disabled={isUpdatingStatus}
-                className="w-full py-2.5 px-4 rounded-xl bg-emerald-950/40 hover:bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold transition-all flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 rounded-xl bg-emerald-950/40 hover:bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
               >
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>CLOSE & MARK RESOLVED IN DATABASE</span>
+                <span>VERIFY REPAIR & CERTIFY RESOLUTION</span>
               </button>
             </div>
           )}
         </div>
       </Drawer>
+
+      {/* Resolution Verification Modal */}
+      <Modal
+        isOpen={isResolutionModalOpen}
+        onClose={() => setIsResolutionModalOpen(false)}
+        title="Official Repair Verification & Closure"
+      >
+        <div className="space-y-4 font-mono text-xs">
+          <p className="text-slate-400">
+            Submit required physical evidence and engineering sign-off for <strong className="text-white">{selectedIssue.issueCode}</strong>:
+          </p>
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-slate-400 block mb-1">Certifying Inspector / Engineer</label>
+              <input
+                type="text"
+                value={certifyingOfficer}
+                onChange={(e) => setCertifyingOfficer(e.target.value)}
+                className="w-full bg-[#0E1524] border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-slate-400 block mb-1">After-Repair Remediation Notes</label>
+              <textarea
+                rows={3}
+                value={resolutionNotes}
+                onChange={(e) => setResolutionNotes(e.target.value)}
+                className="w-full bg-[#0E1524] border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-slate-400 block mb-1">After-Repair Photographic Evidence</label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  value={afterImageUrl}
+                  onChange={(e) => setAfterImageUrl(e.target.value)}
+                  className="w-full bg-[#0E1524] border border-slate-800 rounded-lg px-3 py-2 text-white text-[11px] focus:outline-none focus:border-emerald-500"
+                />
+                <label className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer border border-slate-700 flex items-center gap-1 shrink-0">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Browse</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          if (ev.target?.result) setAfterImageUrl(ev.target.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {afterImageUrl && (
+                <div className="mt-2 rounded-lg overflow-hidden border border-slate-800 h-28 bg-slate-950">
+                  <img src={afterImageUrl} alt="After repair preview" className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+            <button
+              onClick={() => setIsResolutionModalOpen(false)}
+              className="px-4 py-2 text-slate-400 hover:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmResolution}
+              disabled={isUpdatingStatus}
+              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 font-bold transition-colors flex items-center gap-2"
+            >
+              {isUpdatingStatus ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              <span>Certify & Mark Resolved</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Assign Authority Modal */}
       <Modal
