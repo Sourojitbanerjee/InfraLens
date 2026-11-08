@@ -20,9 +20,10 @@ import { SuperAdminDashboardView } from './components/views/SuperAdminDashboardV
 import { IssueDetailDrawer } from './components/dashboard/IssueDetailDrawer';
 import { CommandPalette } from './components/common/CommandPalette';
 import { ToastContainer } from './components/common/ToastContainer';
+import { AuthModal } from './components/auth/AuthModal';
 
 const AppContent: React.FC = () => {
-  const { currentView, setCurrentView } = useInfra();
+  const { currentView, setCurrentView, isAuthModalOpen, setIsAuthModalOpen } = useInfra();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDemoTourOpen, setIsDemoTourOpen] = useState(false);
 
@@ -96,6 +97,12 @@ const AppContent: React.FC = () => {
 
       {/* CMD/CTRL+K Command Palette */}
       <CommandPalette />
+
+      {/* Official Identity & RBAC Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
 
       {/* Toast Notification Container */}
       <ToastContainer />

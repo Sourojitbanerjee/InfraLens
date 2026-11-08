@@ -29,8 +29,8 @@ export const InfrastructureHealthWidget: React.FC = () => {
       signage: 92,
     },
     trend: 'improving',
-    worstPerformingWard: { id: 'ward-6', name: 'Ward 6 — Mission & SOMA', score: 64 },
-    mostImprovedWard: { id: 'ward-3', name: 'Ward 3 — Civic & Financial', score: 79, improvement: 4.8 },
+    worstPerformingWard: { id: 'ward-sarojini', name: 'Ward 3 — Sarojini Nagar & Safdarjung', score: 64 },
+    mostImprovedWard: { id: 'ward-cp', name: 'Ward 1 — Connaught Place & Barakhamba', score: 79, improvement: 4.8 },
   };
 
   const categories: {

@@ -37,7 +37,7 @@ export const ActivityLogView: React.FC = () => {
       date: 'TODAY',
       title: 'AI Detected Severe Pothole',
       actor: 'Municipal Patrol UAV #04 • Edge Model v11',
-      details: 'High-definition stereo scan flagged 180mm depth pavement crater at 4th & Bryant Corridor. Confidence 94.8%.',
+      details: 'High-definition stereo scan flagged 180mm depth pavement crater at Kasturba Gandhi Marg Corridor. Confidence 94.8%.',
       severity: 'critical' as const,
       badge: 'DETECTED',
       badgeVariant: 'danger' as const,
@@ -48,7 +48,7 @@ export const ActivityLogView: React.FC = () => {
       date: 'TODAY',
       title: 'Cluster CL-027 Formed (37 Proximate Reports)',
       actor: 'Autonomous DBSCAN Clustering Engine',
-      details: 'Synthesized 37 aggregated defect records within 400m radius. Spatial epicenter anchored near Lincoln High School.',
+      details: 'Synthesized 37 aggregated defect records within 400m radius. Spatial epicenter anchored near Modern School Barakhamba Road.',
       severity: 'high' as const,
       badge: 'CLUSTERING',
       badgeVariant: 'warning' as const,
@@ -59,7 +59,7 @@ export const ActivityLogView: React.FC = () => {
       date: 'TODAY',
       title: 'Priority Escalated to P1 Critical',
       actor: 'Multi-Factor Priority Engine',
-      details: 'Demographic weighting triggered: Lincoln High School (180m away) + bus stop (90m) + 2,000 daily commuters elevates SLA to 6 hours.',
+      details: 'Demographic weighting triggered: Modern School Barakhamba (180m away) + bus stop (90m) + 2,000 daily commuters elevates SLA to 6 hours.',
       severity: 'critical' as const,
       badge: 'PRIORITY ESCALATED',
       badgeVariant: 'danger' as const,
@@ -156,7 +156,7 @@ export const ActivityLogView: React.FC = () => {
           <div className="flex items-center justify-between border-b border-slate-800 pb-4">
             <div>
               <span className="text-xs font-mono text-orange-400 uppercase tracking-wider font-bold">
-                INCIDENT FLOW • CLUSTER CL-027 (4TH & BRYANT CORRIDOR)
+                INCIDENT FLOW • CLUSTER CL-027 (KASTURBA GANDHI MARG CORRIDOR)
               </span>
               <h3 className="font-mono text-sm sm:text-base font-bold text-white mt-0.5">
                 From Computer Vision Detection to Field Repair Sign-off

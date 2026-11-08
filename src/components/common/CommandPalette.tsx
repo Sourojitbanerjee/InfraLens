@@ -227,7 +227,7 @@ export const CommandPalette: React.FC = () => {
     smartIntentCommands.push({
       id: 'cmd-smart-cl027',
       title: 'Navigate to Cluster CL-027 (37 Reports)',
-      subtitle: 'High damage severity cluster on 4th & Bryant (Lincoln High School zone)',
+      subtitle: 'High damage severity cluster on Kasturba Gandhi Marg (Modern School zone)',
       category: 'Smart Civic Query',
       icon: <Layers className="w-4 h-4 text-orange-400" />,
       run: () => {
@@ -254,16 +254,18 @@ export const CommandPalette: React.FC = () => {
     });
   }
 
-  if (q.includes('ward 17') || q.includes('ward 6') || q.includes('ward 3') || q.includes('ward 9') || q.includes('ward 5')) {
-    const wardName = q.includes('ward 17')
-      ? 'Ward 17 (Metro Sub-District)'
-      : q.includes('ward 6')
-      ? 'Ward 6 — Mission & SOMA'
+  if (q.includes('ward 1') || q.includes('ward 2') || q.includes('ward 3') || q.includes('ward 4') || q.includes('ward 5') || q.includes('ward 6')) {
+    const wardName = q.includes('ward 1')
+      ? 'Ward 1 — Connaught Place'
+      : q.includes('ward 2')
+      ? 'Ward 2 — Chanakyapuri'
       : q.includes('ward 3')
-      ? 'Ward 3 — Civic & Financial'
-      : q.includes('ward 9')
-      ? 'Ward 9 — Mission District'
-      : 'Ward 5 — Western Addition';
+      ? 'Ward 3 — Sarojini Nagar'
+      : q.includes('ward 4')
+      ? 'Ward 4 — Gole Market'
+      : q.includes('ward 5')
+      ? 'Ward 5 — Sansad Marg'
+      : 'Ward 6 — India Gate';
 
     smartIntentCommands.push({
       id: 'cmd-smart-ward',

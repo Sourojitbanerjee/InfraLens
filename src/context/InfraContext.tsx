@@ -10,6 +10,9 @@ import {
 } from '../types/infrastructure';
 import { AppView, FilterState } from '../types/navigation';
 import { infrastructureService } from '../services/infrastructureService';
+import { UserSession } from '../types/auth';
+import { authService } from '../services/authService';
+import { t as translateHelper } from '../i18n/translations';
 
 export interface ToastItem {
   id: string;
@@ -54,6 +57,17 @@ interface InfraContextType {
   closeDetailDrawer: () => void;
   isCommandPaletteOpen: boolean;
   setIsCommandPaletteOpen: (open: boolean) => void;
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
+
+  // Authentication & RBAC
+  currentUser: UserSession | null;
+  setCurrentUser: React.Dispatch<React.SetStateAction<UserSession | null>>;
+
+  // Regional Localization (9 Indian Languages)
+  currentLanguage: string;
+  setCurrentLanguage: (lang: string) => void;
+  t: (key: string) => string;
   
   // Actions
   updateIssueStatus: (id: string, status: ResolutionStatus, notes?: string) => Promise<void>;
@@ -111,8 +125,16 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [realtimeActive, setRealtimeActive] = useState(true);
+
+  // Authentication & RBAC User Session
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(() => authService.getCurrentSession());
+
+  // Regional 9-Language Localization
+  const [currentLanguage, setCurrentLanguage] = useState<string>('en');
+  const t = (key: string) => translateHelper(key, currentLanguage);
 
   // Manual GPS coordinate pin state
   const [manualGpsPin, setManualGpsPin] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
@@ -125,7 +147,7 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     {
       id: 'notif-0',
       title: 'P0 EMERGENCY: High-Voltage Feeder Arcing',
-      message: 'Active electrical hazard detected at 7th & Market St Subway Plaza. Immediate isolation ordered.',
+      message: 'Active electrical hazard detected at Connaught Place Radial 2 Plaza. Immediate isolation ordered.',
       timestamp: '2 min ago',
       read: false,
       type: 'critical',
@@ -133,14 +155,14 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     {
       id: 'notif-1',
       title: 'Cluster CL-027 Escalated to P1',
-      message: '37 aggregated reports within 400m radius of Lincoln High School. Impact score 87/100.',
+      message: '37 aggregated reports within 400m radius of Modern School Barakhamba Road. Impact score 87/100.',
       timestamp: '6 min ago',
       read: false,
       type: 'critical',
     },
     {
       id: 'notif-2',
-      title: 'P1 Cluster Detected Near Central High School',
+      title: 'P1 Cluster Detected Near Modern School',
       message: 'Autonomous computer vision scan flagged arterial pavement fracturing along bus corridor.',
       timestamp: '14 min ago',
       read: false,
@@ -148,7 +170,7 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     },
     {
       id: 'notif-3',
-      title: '7 New Infrastructure Reports in Ward 17',
+      title: '7 New Infrastructure Reports in Ward 1',
       message: 'Citizen feedback and patrol UAV sensors detected drainage backflow and missing signage.',
       timestamp: '28 min ago',
       read: false,
@@ -157,7 +179,7 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     {
       id: 'notif-4',
       title: 'Road Repair Marked Complete (INF-2026-902)',
-      message: 'Municipal Roads Department closed work order. Severity reduced from 87 to 12 in 4.2 days.',
+      message: 'NDMC Civil Roads Department closed work order. Severity reduced from 87 to 12 in 4.2 days.',
       timestamp: '1 hr ago',
       read: true,
       type: 'success',
@@ -407,6 +429,13 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         closeDetailDrawer,
         isCommandPaletteOpen,
         setIsCommandPaletteOpen,
+        isAuthModalOpen,
+        setIsAuthModalOpen,
+        currentUser,
+        setCurrentUser,
+        currentLanguage,
+        setCurrentLanguage,
+        t,
         updateIssueStatus,
         assignAuthority,
         createNewIssue,

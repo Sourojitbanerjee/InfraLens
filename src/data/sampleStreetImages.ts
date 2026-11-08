@@ -20,7 +20,7 @@ export const SAMPLE_STREET_IMAGES: SampleStreetPreset[] = [
     id: 'preset-pothole-school',
     title: 'Severe Asphalt Cavity & Structural Fracture',
     description: 'Deep road depression with structural sub-base erosion along high-speed municipal bus lane.',
-    location: '4th Street & Bryant Blvd (near Lincoln High School)',
+    location: 'Kasturba Gandhi Marg & Tolstoy Road (near Modern School)',
     imageUrl: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=1200&q=80',
     dominantCategory: 'road_damage',
     dominantSeverity: 'critical',
@@ -28,9 +28,9 @@ export const SAMPLE_STREET_IMAGES: SampleStreetPreset[] = [
     recommendedAction: 'EMERGENCY MILLING & TACK-COAT ASPHALT REPAIR',
     responsibleAuthorityId: 'auth-roads',
     nearbyRisks: [
-      { name: 'Lincoln High School', distanceMeters: 180, type: 'school' },
-      { name: 'Muni Transit Bus Stop #402', distanceMeters: 90, type: 'transit' },
-      { name: 'Civic Central Market', distanceMeters: 310, type: 'market' },
+      { name: 'Modern School Barakhamba Road', distanceMeters: 180, type: 'school' },
+      { name: 'DTC Bus Stop (Barakhamba Radial)', distanceMeters: 90, type: 'transit' },
+      { name: 'Connaught Place Commercial Hub', distanceMeters: 310, type: 'market' },
     ],
     detections: [
       {
@@ -61,7 +61,7 @@ export const SAMPLE_STREET_IMAGES: SampleStreetPreset[] = [
     id: 'preset-drainage-market',
     title: 'Blocked Stormwater Catch Basin & Urban Runoff',
     description: 'Sediment buildup and municipal stormwater drain blockage threatening sidewalk inundation.',
-    location: 'Mission & 16th Street Commercial Corridor',
+    location: 'Connaught Place Inner Circle Radial 2 (near Rajiv Chowk)',
     imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1200&q=80',
     dominantCategory: 'drainage_overflow',
     dominantSeverity: 'critical',
@@ -69,9 +69,9 @@ export const SAMPLE_STREET_IMAGES: SampleStreetPreset[] = [
     recommendedAction: 'HIGH-PRESSURE JETTING & CULVERT CLEARANCE',
     responsibleAuthorityId: 'auth-drainage',
     nearbyRisks: [
-      { name: '16th St BART Transit Hub', distanceMeters: 120, type: 'transit' },
-      { name: 'Mission Community Clinic', distanceMeters: 240, type: 'hospital' },
-      { name: 'Farmers Indoor Market', distanceMeters: 150, type: 'market' },
+      { name: 'Rajiv Chowk Metro Terminal', distanceMeters: 120, type: 'transit' },
+      { name: 'Lady Hardinge Medical College', distanceMeters: 240, type: 'hospital' },
+      { name: 'Janpath Commercial Market', distanceMeters: 150, type: 'market' },
     ],
     detections: [
       {
@@ -102,7 +102,7 @@ export const SAMPLE_STREET_IMAGES: SampleStreetPreset[] = [
     id: 'preset-sidewalk-elderly',
     title: 'Buckled Concrete Slab & Root Intrusion',
     description: 'Displaced sidewalk paving slab with visible elevation trip hazard in designated pedestrian zone.',
-    location: 'Sutter & Steiner St (Near St. Mary Medical Center)',
+    location: 'Mandir Marg (near Dr. Ram Manohar Lohia Hospital)',
     imageUrl: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=1200&q=80',
     dominantCategory: 'sidewalk_hazard',
     dominantSeverity: 'high',
@@ -110,8 +110,8 @@ export const SAMPLE_STREET_IMAGES: SampleStreetPreset[] = [
     recommendedAction: 'TREE-ROOT TRIMMING & SLAB LEVELING',
     responsibleAuthorityId: 'auth-sidewalk',
     nearbyRisks: [
-      { name: 'St. Mary Senior Care Pavilion', distanceMeters: 85, type: 'elderly_center' },
-      { name: 'Pedestrian Crosswalk', distanceMeters: 45, type: 'transit' },
+      { name: 'Dr. RML Hospital Senior Wing', distanceMeters: 85, type: 'hospital' },
+      { name: 'Pedestrian Zebra Crossing', distanceMeters: 45, type: 'transit' },
     ],
     detections: [
       {
@@ -142,7 +142,7 @@ export const SAMPLE_STREET_IMAGES: SampleStreetPreset[] = [
     id: 'preset-waste-corridor',
     title: 'Illegal Solid Waste & Bulk Debris Dumping',
     description: 'Bulk municipal refuse obstruction blocking vehicular clearance and stormwater egress.',
-    location: 'Folsom Street at 8th Avenue Service Alley',
+    location: 'Sarojini Nagar Service Alley (near Pink Line Metro)',
     imageUrl: 'https://images.unsplash.com/photo-1605600659873-d808a13e4d2a?auto=format&fit=crop&w=1200&q=80',
     dominantCategory: 'waste_accumulation',
     dominantSeverity: 'moderate',
@@ -150,8 +150,8 @@ export const SAMPLE_STREET_IMAGES: SampleStreetPreset[] = [
     recommendedAction: 'RAPID COMPACTOR TRUCK CLEARANCE & CITATION REVIEW',
     responsibleAuthorityId: 'auth-waste',
     nearbyRisks: [
-      { name: 'SOMA Elementary Academy', distanceMeters: 310, type: 'school' },
-      { name: 'Residential Apartments', distanceMeters: 40, type: 'residential' },
+      { name: "St. Columba's Junior Section", distanceMeters: 310, type: 'school' },
+      { name: 'Sarojini Nagar Govt Colony', distanceMeters: 40, type: 'residential' },
     ],
     detections: [
       {
@@ -182,7 +182,7 @@ export const SAMPLE_STREET_IMAGES: SampleStreetPreset[] = [
     id: 'preset-lighting-corridor',
     title: 'Fallen High-Intensity Luminaire & Exposed Wiring',
     description: 'Structural mast-arm mechanical failure causing complete blackout on primary transit arterial.',
-    location: 'Van Ness Avenue & Geary Boulevard',
+    location: 'Shanti Path Diplomatic Highway Corridor',
     imageUrl: 'https://images.unsplash.com/photo-1508873696983-2df5293cb325?auto=format&fit=crop&w=1200&q=80',
     dominantCategory: 'lighting_failure',
     dominantSeverity: 'critical',
@@ -190,8 +190,8 @@ export const SAMPLE_STREET_IMAGES: SampleStreetPreset[] = [
     recommendedAction: 'IMMEDIATE ELECTRICAL ISOLATION & MAST REPLACEMENT',
     responsibleAuthorityId: 'auth-lighting',
     nearbyRisks: [
-      { name: 'Rapid Transit Station', distanceMeters: 70, type: 'transit' },
-      { name: 'Night Market Entrance', distanceMeters: 190, type: 'market' },
+      { name: 'Shivaji Stadium Transit Hub', distanceMeters: 70, type: 'transit' },
+      { name: 'Chanakyapuri Market Entrance', distanceMeters: 190, type: 'market' },
     ],
     detections: [
       {

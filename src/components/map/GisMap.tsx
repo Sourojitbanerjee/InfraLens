@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { Issue, Severity, Priority, RoadSegment } from '../../types/infrastructure';
-import { METRO_ROADS } from '../../services/gisEngine';
+import { Issue, Severity, RoadSegment } from '../../types/infrastructure';
+import { METRO_ROADS, METRO_WARDS } from '../../services/gisEngine';
 import { useInfra } from '../../context/InfraContext';
 import { 
   Layers, 
@@ -10,13 +10,22 @@ import {
   Crosshair, 
   Eye, 
   MapPin, 
-  ZoomIn,
-  ZoomOut,
-  Route,
-  Satellite,
-  Map as MapIcon,
-  Check,
-  AlertCircle
+  ZoomIn, 
+  ZoomOut, 
+  Route, 
+  Satellite, 
+  Map as MapIcon, 
+  Check, 
+  AlertCircle,
+  Search,
+  X,
+  Copy,
+  Clock,
+  Building2,
+  ShieldCheck,
+  AlertTriangle,
+  UserCheck,
+  CheckCircle2
 } from 'lucide-react';
 
 interface GisMapProps {
@@ -69,7 +78,6 @@ const MapResizeHandler: React.FC = () => {
   const map = useMap();
 
   useEffect(() => {
-    // Initial size invalidation
     const timer = setTimeout(() => {
       map.invalidateSize();
     }, 150);
@@ -99,6 +107,11 @@ const createCustomMarkerIcon = (issue: Issue, isSelected: boolean) => {
   const isEmergency = issue.priority === 'P0';
   const isCluster = (issue.clusterCount ?? 0) > 5;
   const count = issue.clusterCount ?? 1;
+  const isResolved = issue.status === 'resolved' || issue.severity === 'healthy';
+  const isUnverified = 
+    issue.verificationStatus === 'UNVERIFIED_PROVISIONAL' || 
+    issue.location?.locationVerificationStatus === 'UNVERIFIED_PROVISIONAL' ||
+    issue.recordType === 'CITIZEN_REPORT';
 
   const colorMap: Record<Severity, { bg: string; border: string; glow: string; text: string }> = {
     critical: {
@@ -127,11 +140,22 @@ const createCustomMarkerIcon = (issue: Issue, isSelected: boolean) => {
     },
   };
 
-  const style = colorMap[issue.severity] || colorMap.moderate;
+  const style = isResolved ? colorMap.healthy : (colorMap[issue.severity] || colorMap.moderate);
 
   let html = '';
 
-  if (isEmergency) {
+  if (isUnverified) {
+    html = `
+      <div class="relative flex items-center justify-center cursor-pointer group">
+        <span class="absolute w-10 h-10 rounded-full border-2 border-dashed border-amber-400 opacity-80 animate-spin" style="animation-duration: 8s;"></span>
+        <div class="relative flex items-center justify-center w-7 h-7 rounded-full bg-amber-950/90 border-2 border-dashed border-amber-400 text-amber-300 font-mono font-bold text-[10px] shadow-lg ${
+          isSelected ? 'ring-4 ring-cyan-400 scale-125 z-50' : ''
+        }">
+          ?
+        </div>
+      </div>
+    `;
+  } else if (isEmergency) {
     html = `
       <div class="relative flex items-center justify-center cursor-pointer group">
         <span class="absolute w-14 h-14 rounded-full bg-rose-600 opacity-40 animate-ping"></span>
@@ -140,6 +164,17 @@ const createCustomMarkerIcon = (issue: Issue, isSelected: boolean) => {
           isSelected ? 'ring-4 ring-cyan-400 scale-125 z-50' : ''
         }">
           ⚡
+        </div>
+      </div>
+    `;
+  } else if (isResolved) {
+    html = `
+      <div class="relative flex items-center justify-center cursor-pointer group">
+        <span class="absolute w-8 h-8 rounded-full bg-emerald-500/30"></span>
+        <div class="relative flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 border-2 border-emerald-300 text-white font-bold text-[11px] shadow-lg ${
+          isSelected ? 'ring-4 ring-cyan-400 scale-125 z-50' : ''
+        }">
+          ✓
         </div>
       </div>
     `;
@@ -244,7 +279,9 @@ export const GisMap: React.FC<GisMapProps> = ({
     filteredIssues, 
     selectedIssue, 
     openDetailDrawer,
-    clusters 
+    clusters,
+    authorities,
+    addToast
   } = useInfra();
 
   const displayIssues = propIssues || filteredIssues;
@@ -254,14 +291,19 @@ export const GisMap: React.FC<GisMapProps> = ({
 
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showRoads, setShowRoads] = useState(showRoadSegments !== undefined ? showRoadSegments : true);
-  const [mapFilter, setMapFilter] = useState<'all' | 'critical' | 'clusters'>('all');
+  const [mapFilter, setMapFilter] = useState<'all' | 'critical' | 'clusters' | 'unverified'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedWard, setSelectedWard] = useState<string>('all');
+  const [selectedDept, setSelectedDept] = useState<string>('all');
+  const [copiedCoordId, setCopiedCoordId] = useState<string | null>(null);
+
   const [basemapStyle, setBasemapStyle] = useState<BasemapMode>('maptiler-dark');
   const [showLayerMenu, setShowLayerMenu] = useState(false);
   const [tileErrorCount, setTileErrorCount] = useState(0);
   const [usingFallback, setUsingFallback] = useState(false);
 
-  // Center coordinate defaults to Metro Central (San Francisco)
-  const defaultCenter: [number, number] = [37.7749, -122.4194];
+  // Center coordinate defaults to New Delhi Municipal Council (NDMC) Central Delhi
+  const defaultCenter: [number, number] = [28.6139, 77.2090];
 
   const flyTargetCoords = useMemo<[number, number] | null>(() => {
     if (activeSelected) {
@@ -270,14 +312,50 @@ export const GisMap: React.FC<GisMapProps> = ({
     return null;
   }, [activeSelected]);
 
-  // Filter markers based on local map quick filter
+  // Comprehensive GIS filtering: search query + ward + department + quick filter
   const visibleIssues = useMemo(() => {
     return displayIssues.filter((i) => {
+      // 1. Text Search (ID, title, address, road, ward)
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const matchesCode = i.issueCode?.toLowerCase().includes(query) || i.id.toLowerCase().includes(query);
+        const matchesTitle = i.title?.toLowerCase().includes(query);
+        const matchesAddress = i.location?.address?.toLowerCase().includes(query);
+        const matchesRoad = i.location?.roadName?.toLowerCase().includes(query);
+        const matchesWard = i.location?.ward?.toLowerCase().includes(query);
+        if (!matchesCode && !matchesTitle && !matchesAddress && !matchesRoad && !matchesWard) {
+          return false;
+        }
+      }
+
+      // 2. Ward Filter
+      if (selectedWard !== 'all') {
+        const iWard = (i.location?.ward || '').toLowerCase();
+        if (!iWard.includes(selectedWard.toLowerCase())) {
+          return false;
+        }
+      }
+
+      // 3. Department Filter
+      if (selectedDept !== 'all') {
+        if (i.authorityId !== selectedDept && i.authorityName !== selectedDept) {
+          return false;
+        }
+      }
+
+      // 4. Map Filter mode
       if (mapFilter === 'critical') return i.severity === 'critical' || i.priority === 'P0' || i.priority === 'P1';
       if (mapFilter === 'clusters') return (i.clusterCount ?? 0) > 3;
+      if (mapFilter === 'unverified') {
+        return (
+          i.verificationStatus === 'UNVERIFIED_PROVISIONAL' || 
+          i.location?.locationVerificationStatus === 'UNVERIFIED_PROVISIONAL' ||
+          i.recordType === 'CITIZEN_REPORT'
+        );
+      }
       return true;
     });
-  }, [displayIssues, mapFilter]);
+  }, [displayIssues, searchQuery, selectedWard, selectedDept, mapFilter]);
 
   // Active basemap config
   const activeBasemapConfig = usingFallback
@@ -287,8 +365,6 @@ export const GisMap: React.FC<GisMapProps> = ({
   const handleTileError = () => {
     setTileErrorCount((prev) => {
       const next = prev + 1;
-      // If MapTiler key throws 4+ tile errors (e.g. key domain restriction on localhost),
-      // seamlessly fall back to Carto Dark so the map never renders blank or broken tiles.
       if (next >= 4 && !usingFallback && basemapStyle.startsWith('maptiler')) {
         setUsingFallback(true);
       }
@@ -317,71 +393,151 @@ export const GisMap: React.FC<GisMapProps> = ({
     mapInstanceRef.current?.flyTo(defaultCenter, 13, { duration: 1.0 });
   };
 
+  const copyCoordinates = (issue: Issue) => {
+    const text = `${issue.location.latitude.toFixed(6)}, ${issue.location.longitude.toFixed(6)}`;
+    navigator.clipboard?.writeText(text);
+    setCopiedCoordId(issue.id);
+    addToast(`Coordinates copied: ${text}`, 'info');
+    setTimeout(() => setCopiedCoordId(null), 2500);
+  };
+
   return (
     <div className={`relative w-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-[#07090E] ${heightClass}`}>
       {/* Map Control Bar Overlay */}
       {showControls && (
-        <div className="absolute top-2 sm:top-3 left-2 sm:left-3 z-[1000] flex items-center gap-1.5 sm:gap-2 max-w-[calc(100%-54px)] overflow-x-auto no-scrollbar py-0.5">
-          {/* Quick Filters */}
-          <div className="flex items-center shrink-0 rounded-lg bg-[#0E1524]/90 border border-slate-800 p-0.5 sm:p-1 backdrop-blur-md shadow-xl text-[11px] sm:text-xs font-mono">
+        <div className="absolute top-2 sm:top-3 left-2 sm:left-3 z-[1000] flex flex-col gap-2 max-w-[calc(100%-60px)]">
+          {/* Top Row: Search + Quick Filters */}
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5">
+            {/* Real-time Search Box */}
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search incident, road, ward..."
+                className="w-44 sm:w-56 pl-7 pr-6 py-1 rounded-lg bg-[#0E1524]/95 border border-slate-700/80 text-[11px] sm:text-xs font-mono text-slate-100 placeholder-slate-500 backdrop-blur-md shadow-xl focus:outline-none focus:border-cyan-400"
+              />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 pointer-events-none" />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-1.5 p-0.5 text-slate-400 hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Quick Filter Pill Group */}
+            <div className="flex items-center shrink-0 rounded-lg bg-[#0E1524]/90 border border-slate-800 p-0.5 sm:p-1 backdrop-blur-md shadow-xl text-[11px] sm:text-xs font-mono">
+              <button
+                onClick={() => setMapFilter('all')}
+                className={`px-2 sm:px-2.5 py-1 rounded-md transition-colors ${
+                  mapFilter === 'all'
+                    ? 'bg-cyan-950 text-cyan-300 font-semibold border border-cyan-500/40'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                All ({displayIssues.length})
+              </button>
+              <button
+                onClick={() => setMapFilter('critical')}
+                className={`px-2 sm:px-2.5 py-1 rounded-md flex items-center gap-1 sm:gap-1.5 transition-colors ${
+                  mapFilter === 'critical'
+                    ? 'bg-rose-950 text-rose-300 font-semibold border border-rose-500/40'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-rose-500 animate-pulse" />
+                Critical
+              </button>
+              <button
+                onClick={() => setMapFilter('unverified')}
+                className={`px-2 sm:px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors ${
+                  mapFilter === 'unverified'
+                    ? 'bg-amber-950 text-amber-300 font-semibold border border-amber-500/40'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <AlertCircle className="w-3 h-3 text-amber-400" />
+                <span>Provisional</span>
+              </button>
+              <button
+                onClick={() => setMapFilter('clusters')}
+                className={`px-2 sm:px-2.5 py-1 rounded-md transition-colors ${
+                  mapFilter === 'clusters'
+                    ? 'bg-orange-950 text-orange-300 font-semibold border border-orange-500/40'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Hubs
+              </button>
+            </div>
+
+            {/* Corridors Toggle */}
             <button
-              onClick={() => setMapFilter('all')}
-              className={`px-2 sm:px-2.5 py-1 rounded-md transition-colors ${
-                mapFilter === 'all'
-                  ? 'bg-cyan-950 text-cyan-300 font-semibold border border-cyan-500/40'
-                  : 'text-slate-400 hover:text-white'
+              onClick={() => setShowRoads(!showRoads)}
+              className={`flex items-center shrink-0 gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-mono backdrop-blur-md transition-colors ${
+                showRoads
+                  ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
+                  : 'bg-[#0E1524]/90 text-slate-400 border-slate-800 hover:text-white'
               }`}
             >
-              All ({displayIssues.length})
+              <Route className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Corridors</span> {showRoads ? 'ON' : 'OFF'}
             </button>
+
+            {/* Heatmap Toggle */}
             <button
-              onClick={() => setMapFilter('critical')}
-              className={`px-2 sm:px-2.5 py-1 rounded-md flex items-center gap-1 sm:gap-1.5 transition-colors ${
-                mapFilter === 'critical'
-                  ? 'bg-rose-950 text-rose-300 font-semibold border border-rose-500/40'
-                  : 'text-slate-400 hover:text-white'
+              onClick={() => setShowHeatmap(!showHeatmap)}
+              className={`flex items-center shrink-0 gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-mono backdrop-blur-md transition-colors ${
+                showHeatmap
+                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400'
+                  : 'bg-[#0E1524]/90 text-slate-400 border-slate-800 hover:text-white'
               }`}
             >
-              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-rose-500 animate-pulse" />
-              Critical / P0
-            </button>
-            <button
-              onClick={() => setMapFilter('clusters')}
-              className={`px-2 sm:px-2.5 py-1 rounded-md transition-colors ${
-                mapFilter === 'clusters'
-                  ? 'bg-orange-950 text-orange-300 font-semibold border border-orange-500/40'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              DBSCAN Hubs
+              <Flame className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Heatmap</span> {showHeatmap ? 'ON' : 'OFF'}
             </button>
           </div>
 
-          {/* Road Network Toggle (Rule 3) */}
-          <button
-            onClick={() => setShowRoads(!showRoads)}
-            className={`flex items-center shrink-0 gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border text-[11px] sm:text-xs font-mono backdrop-blur-md transition-colors ${
-              showRoads
-                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40 shadow-lg shadow-emerald-950/40'
-                : 'bg-[#0E1524]/90 text-slate-400 border-slate-800 hover:text-white'
-            }`}
-          >
-            <Route className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Corridors {showRoads ? 'ON' : 'OFF'}</span>
-          </button>
+          {/* Sub Row: Ward Filter & Department Filter Dropdowns */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            {/* Ward Selector */}
+            <select
+              value={selectedWard}
+              onChange={(e) => setSelectedWard(e.target.value)}
+              className="bg-[#0E1524]/95 border border-slate-800 text-slate-300 text-[11px] font-mono rounded-lg px-2 py-1 backdrop-blur-md focus:outline-none focus:border-cyan-500 shadow-md"
+            >
+              <option value="all">All NDMC Wards</option>
+              {METRO_WARDS.map((w) => (
+                <option key={w.id} value={w.name.split('—')[0].trim()}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
 
-          {/* Heatmap Toggle */}
-          <button
-            onClick={() => setShowHeatmap(!showHeatmap)}
-            className={`flex items-center shrink-0 gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border text-[11px] sm:text-xs font-mono backdrop-blur-md transition-colors ${
-              showHeatmap
-                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400 shadow-lg shadow-cyan-950/40'
-                : 'bg-[#0E1524]/90 text-slate-400 border-slate-800 hover:text-white'
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5 text-amber-400" />
-            <span>Heatmap {showHeatmap ? 'ON' : 'OFF'}</span>
-          </button>
+            {/* Department Selector */}
+            {authorities && authorities.length > 0 && (
+              <select
+                value={selectedDept}
+                onChange={(e) => setSelectedDept(e.target.value)}
+                className="bg-[#0E1524]/95 border border-slate-800 text-slate-300 text-[11px] font-mono rounded-lg px-2 py-1 backdrop-blur-md focus:outline-none focus:border-cyan-500 shadow-md hidden sm:inline-block"
+              >
+                <option value="all">All Departments</option>
+                {authorities.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* Match Counter Badge */}
+            <span className="px-2 py-0.5 rounded bg-slate-900/90 border border-slate-800 text-[10px] font-mono text-cyan-400 shrink-0">
+              {visibleIssues.length} points
+            </span>
+          </div>
         </div>
       )}
 
@@ -407,7 +563,7 @@ export const GisMap: React.FC<GisMapProps> = ({
         <button
           onClick={handleResetCenter}
           className="p-1.5 sm:p-2 rounded-lg bg-[#0E1524]/90 border border-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-colors backdrop-blur-md shadow-xl"
-          title="Reset to Metro Center"
+          title="Reset to New Delhi NDMC Center"
         >
           <Crosshair className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
@@ -421,12 +577,11 @@ export const GisMap: React.FC<GisMapProps> = ({
                 ? 'bg-cyan-950 text-cyan-300 border-cyan-500/60 shadow-cyan-950/50'
                 : 'bg-[#0E1524]/90 border-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60'
             }`}
-            title="Select Basemap Layer (MapTiler Dark, Satellite, Streets)"
+            title="Select Basemap Layer"
           >
             <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
 
-          {/* Layer Selection Dropdown */}
           {showLayerMenu && (
             <div className="absolute right-0 top-full mt-2 w-60 sm:w-68 rounded-xl bg-[#090D18]/95 border border-slate-800 shadow-2xl p-2 z-[1100] backdrop-blur-xl font-mono text-xs animate-in fade-in zoom-in-95">
               <div className="px-2.5 py-1.5 border-b border-slate-800/80 mb-1 flex items-center justify-between">
@@ -485,29 +640,34 @@ export const GisMap: React.FC<GisMapProps> = ({
       </div>
 
       {/* Map Legend (Bottom-Left) */}
-      <div className="absolute bottom-3 left-3 z-[1000] hidden sm:flex items-center gap-4 px-3 py-2 rounded-lg bg-[#080D18]/90 border border-slate-800/80 backdrop-blur-md text-[11px] font-mono text-slate-300 shadow-xl">
+      <div className="absolute bottom-3 left-3 z-[1000] hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-lg bg-[#080D18]/90 border border-slate-800/80 backdrop-blur-md text-[10px] font-mono text-slate-300 shadow-xl">
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse" />
           <span>P0 Emergency</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-          <span>P1 Critical</span>
+          <span>Critical</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-          <span>P2 High</span>
+          <span>High</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+          <span>Moderate</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
           <span>Resolved</span>
         </div>
-        <div className="border-l border-slate-700 pl-3 flex items-center gap-1.5 text-cyan-400 font-semibold">
-          <span>🔴 37 = DBSCAN Hub</span>
+        <div className="flex items-center gap-1.5 border-l border-slate-700/80 pl-2 text-amber-400">
+          <span className="w-2.5 h-2.5 rounded-full border border-dashed border-amber-400" />
+          <span>Provisional</span>
         </div>
       </div>
 
-      {/* Map Engine Badge (Bottom-Right) */}
+      {/* Accuracy & Deployment Jurisdiction Badge (Bottom-Right) */}
       <div className="absolute bottom-3 right-3 z-[1000] hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#080D18]/90 border border-slate-800/90 backdrop-blur-md text-[10px] font-mono text-slate-300 shadow-xl">
         <span
           className={`w-2 h-2 rounded-full ${
@@ -515,10 +675,12 @@ export const GisMap: React.FC<GisMapProps> = ({
           }`}
         />
         <span className="font-semibold text-slate-200">
-          {usingFallback ? 'Carto Dark (Fallback)' : `MapTiler: ${activeBasemapConfig.name}`}
+          NDMC Central Delhi (RTK GPS ±3.2m)
         </span>
         <span className="text-slate-600">|</span>
-        <span className="text-slate-500 text-[9px]">Key: lTDr...4lt</span>
+        <span className="text-slate-500 text-[9px]">
+          {usingFallback ? 'Carto Fallback' : activeBasemapConfig.name}
+        </span>
       </div>
 
       {/* Actual React-Leaflet Map */}
@@ -560,7 +722,7 @@ export const GisMap: React.FC<GisMapProps> = ({
             />
           ))}
 
-        {/* City-Wide Road Infrastructure Health Network (Rule 3) */}
+        {/* City-Wide Road Infrastructure Health Network */}
         {showRoads &&
           METRO_ROADS.map((road) => {
             const isRoadSelected = selectedRoadId === road.id;
@@ -643,10 +805,11 @@ export const GisMap: React.FC<GisMapProps> = ({
           />
         ))}
 
-        {/* Markers */}
+        {/* Incident Markers with 15-Field Production Telemetry Popup */}
         {visibleIssues.map((issue) => {
           const isSelected = activeSelected?.id === issue.id;
           const markerIcon = createCustomMarkerIcon(issue, isSelected);
+          const isCopied = copiedCoordId === issue.id;
 
           return (
             <Marker
@@ -660,34 +823,112 @@ export const GisMap: React.FC<GisMapProps> = ({
                 },
               }}
             >
-              <Popup className="custom-popup">
-                <div className="p-1 space-y-2 max-w-[260px] text-xs font-sans">
+              <Popup className="custom-popup" maxWidth={320}>
+                <div className="p-1 space-y-2 max-w-[300px] text-xs font-sans">
+                  {/* Field 1: Incident ID & Priority & Severity Header */}
                   <div className="flex items-center justify-between border-b border-slate-700/60 pb-1.5">
-                    <span className="font-mono text-[10px] text-cyan-400 font-bold">
-                      {issue.issueCode}
-                    </span>
-                    <span
-                      className={`text-[9px] font-mono uppercase px-1.5 py-0.2 rounded font-bold ${
-                        issue.priority === 'P0'
-                          ? 'bg-purple-950 text-rose-300'
-                          : issue.severity === 'critical'
-                          ? 'bg-rose-950 text-rose-300'
-                          : 'bg-amber-950 text-amber-300'
-                      }`}
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-[11px] text-cyan-400 font-extrabold">
+                        {issue.issueCode || issue.id}
+                      </span>
+                      {issue.recordType && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-slate-800 text-slate-300">
+                          {issue.recordType}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 font-mono text-[9px] font-bold">
+                      <span
+                        className={`px-1.5 py-0.5 rounded ${
+                          issue.priority === 'P0'
+                            ? 'bg-purple-950 text-rose-300'
+                            : issue.severity === 'critical'
+                            ? 'bg-rose-950 text-rose-300'
+                            : 'bg-amber-950 text-amber-300'
+                        }`}
+                      >
+                        {issue.priority}
+                      </span>
+                      <span className="uppercase text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded">
+                        {issue.severity}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Field 2 & 3: Category Label & Defect Title */}
+                  <div>
+                    <div className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider font-semibold">
+                      {issue.categoryLabel || issue.category?.replace(/_/g, ' ')}
+                    </div>
+                    <div className="font-bold text-slate-100 text-xs leading-snug mt-0.5">
+                      {issue.title}
+                    </div>
+                  </div>
+
+                  {/* Field 4 & 5: Coordinates with Copy Button */}
+                  <div className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 font-mono text-[10px] flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-slate-300">
+                      <MapPin className="w-3 h-3 text-cyan-400 shrink-0" />
+                      <span>{issue.location.latitude.toFixed(5)}, {issue.location.longitude.toFixed(5)}</span>
+                    </div>
+                    <button
+                      onClick={() => copyCoordinates(issue)}
+                      className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center gap-1 transition-colors"
+                      title="Copy GPS coordinates"
                     >
-                      {issue.priority} {issue.severity}
-                    </span>
+                      {isCopied ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5" />}
+                      <span>{isCopied ? 'Copied' : 'Copy'}</span>
+                    </button>
                   </div>
 
-                  <div className="font-semibold text-slate-100 text-xs leading-snug">
-                    {issue.title}
+                  {/* Field 6 & 7: Address, Ward & Pincode */}
+                  <div className="text-[11px] text-slate-300 font-mono space-y-0.5">
+                    <div className="truncate text-slate-200">{issue.location.address}</div>
+                    <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                      <span>{issue.location.ward || 'Ward 1 — Connaught Place'}</span>
+                      {issue.location.pincode && <span>PIN: {issue.location.pincode}</span>}
+                    </div>
                   </div>
 
-                  <div className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
-                    <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
-                    <span className="truncate">{issue.location.address}</span>
+                  {/* Field 8, 9, 10, 11, 12, 13: Operational Grid */}
+                  <div className="grid grid-cols-2 gap-1.5 font-mono text-[10px] pt-1 border-t border-slate-800/80">
+                    <div className="space-y-0.5">
+                      <span className="text-slate-500 uppercase">Assigned Authority</span>
+                      <div className="text-slate-200 font-semibold truncate">
+                        {issue.authorityName || 'NDMC Civil Roads'}
+                      </div>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-slate-500 uppercase">GPS Accuracy</span>
+                      <div className="text-emerald-400 font-semibold flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3" />
+                        <span>±{issue.location.accuracyMeters || 3.2}m (RTK)</span>
+                      </div>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-slate-500 uppercase">Verification</span>
+                      <div className="text-cyan-300 font-semibold">
+                        {issue.location.locationVerificationStatus || 'VERIFIED_FIELD'}
+                      </div>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-slate-500 uppercase">SLA Target</span>
+                      <div className="text-amber-400 font-semibold flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        <span>{issue.impact?.slaDeadlineHours || 24}h</span>
+                      </div>
+                    </div>
                   </div>
 
+                  {/* Field 14: Assigned Officer / Team */}
+                  {issue.assignedOfficerOrTeam && (
+                    <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1 pt-0.5">
+                      <UserCheck className="w-3 h-3 text-cyan-400 shrink-0" />
+                      <span>Assigned: <strong className="text-slate-200">{issue.assignedOfficerOrTeam}</strong></span>
+                    </div>
+                  )}
+
+                  {/* Field 15: AI Reason Snippet & Drawer Action Button */}
                   {issue.priorityExplainability?.reasons?.[0] && (
                     <div className="bg-slate-900 border border-slate-800 p-1.5 rounded text-[10px] text-slate-300 font-mono">
                       Reason: {issue.priorityExplainability.reasons[0]}
@@ -697,10 +938,10 @@ export const GisMap: React.FC<GisMapProps> = ({
                   <div className="pt-1 flex gap-2">
                     <button
                       onClick={() => openDetailDrawer(issue)}
-                      className="w-full py-1.5 px-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded font-mono text-[11px] font-semibold transition-colors flex items-center justify-center gap-1"
+                      className="w-full py-1.5 px-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded font-mono text-[11px] font-semibold transition-colors flex items-center justify-center gap-1 shadow-md shadow-cyan-900/40"
                     >
-                      <Eye className="w-3 h-3" />
-                      <span>Inspect Telemetry</span>
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Inspect Telemetry & Full History</span>
                     </button>
                   </div>
                 </div>

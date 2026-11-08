@@ -117,7 +117,7 @@ export const InteractiveDemoTour: React.FC<InteractiveDemoTourProps> = ({ isOpen
 
       case 5:
         setCurrentView('map');
-        addToast('Step 5: Impact: Lincoln High School 180m away — ~2,000 daily users', 'info');
+        addToast('Step 5: Impact: Modern School Barakhamba 180m away — ~2,000 daily users', 'info');
         break;
 
       case 6:
@@ -219,7 +219,7 @@ export const InteractiveDemoTour: React.FC<InteractiveDemoTourProps> = ({ isOpen
       step: 5,
       title: 'Civic Impact: ~2,000 Daily Users',
       tag: 'DEMOGRAPHIC RISK',
-      desc: 'Cross-references POIs: Lincoln High School (180m) + bus stop (90m) + high traffic corridor.',
+      desc: 'Cross-references POIs: Modern School Barakhamba (180m) + bus stop (90m) + high traffic corridor.',
       icon: ShieldCheck,
     },
     {
