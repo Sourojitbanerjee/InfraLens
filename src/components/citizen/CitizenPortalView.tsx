@@ -27,7 +27,11 @@ import {
   Layers,
   Flame,
   Radio,
-  FileCheck
+  FileCheck,
+  Loader2,
+  Navigation,
+  Upload,
+  WifiOff
 } from 'lucide-react';
 import { CitizenService } from '../../services/citizenService';
 import { CitizenReport, CitizenProfile } from '../../types/citizen';
@@ -36,8 +40,14 @@ import { SAMPLE_STREET_IMAGES } from '../../data/sampleStreetImages';
 import { AiVisionService, AiInferenceResult } from '../../services/aiVisionService';
 import { SeverityIndicator } from '../common/SeverityIndicator';
 import { CameraCaptureModal } from '../common/CameraCaptureModal';
+import { GeoLocationService } from '../../services/geoLocationService';
+import { supabaseIncidentService } from '../../services/supabaseIncidentService';
+import { isSupabaseConfigured } from '../../lib/supabase';
+import { useInfra } from '../../context/InfraContext';
 
 export const CitizenPortalView: React.FC = () => {
+  const { createNewIssue, currentUser, addToast, setCurrentView } = useInfra();
+
   const [activeTab, setActiveTab] = useState<'overview' | 'report' | 'nearby' | 'track' | 'settings'>('overview');
   const [profile, setProfile] = useState<CitizenProfile>(CitizenService.getProfile());
   const [reports, setReports] = useState<CitizenReport[]>(CitizenService.getAllReports());
@@ -48,25 +58,40 @@ export const CitizenPortalView: React.FC = () => {
   // 10-Step Wizard State
   const [wizardStep, setWizardStep] = useState<number>(1);
   const [wizardImage, setWizardImage] = useState<string>(SAMPLE_STREET_IMAGES[0]?.imageUrl || '');
+  const [wizardImageFile, setWizardImageFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState<boolean>(false);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<AiInferenceResult | null>(null);
+
+  // GPS state — starts null (not yet obtained from device)
+  const [isGpsLoading, setIsGpsLoading] = useState<boolean>(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [gpsSource, setGpsSource] = useState<'DEVICE_GPS' | 'EXIF_METADATA' | 'MANUAL' | null>(null);
+
   const [wizardLocation, setWizardLocation] = useState({
-    latitude: 28.6315,
-    longitude: 77.2167,
-    address: 'Radial Road 2, Inner Circle, Connaught Place, New Delhi',
-    pincode: '110001',
-    wardOrVillage: 'Ward 1 - Connaught Place',
+    latitude: 0,
+    longitude: 0,
+    address: '',
+    pincode: '',
+    wardOrVillage: '',
+    city: '',
+    district: '',
+    state: '',
+    roadName: '',
+    accuracyMeters: 0,
   });
+
   const [wizardCategory, setWizardCategory] = useState<InfrastructureCategory>('road_damage');
   const [wizardCategoryLabel, setWizardCategoryLabel] = useState<string>('Road Damage & Potholes');
   const [wizardSeverity, setWizardSeverity] = useState<Severity>('critical');
   const [wizardSeverityScore, setWizardSeverityScore] = useState<number>(88);
-  const [wizardTitle, setWizardTitle] = useState<string>('Severe Hazardous Asphalt Defect');
-  const [wizardDescription, setWizardDescription] = useState<string>('Deep road cavity on main transit lane posing danger to motorists and pedestrians.');
-  const [wizardLandmark, setWizardLandmark] = useState<string>('Near Connaught Place Metro Station Gate 4');
+  const [wizardTitle, setWizardTitle] = useState<string>('');
+  const [wizardDescription, setWizardDescription] = useState<string>('');
+  const [wizardLandmark, setWizardLandmark] = useState<string>('');
   const [wizardIsAnonymous, setWizardIsAnonymous] = useState<boolean>(false);
   const [submittedReceipt, setSubmittedReceipt] = useState<{ report: CitizenReport; duplicateWarning?: string } | null>(null);
+  const [submittedIssueCode, setSubmittedIssueCode] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
 
   // Filtered Nearby Issues
@@ -89,6 +114,38 @@ export const CitizenPortalView: React.FC = () => {
     setProfile(CitizenService.getProfile());
   };
 
+  // Handle Device GPS Acquisition
+  const handleAcquireGps = async () => {
+    setIsGpsLoading(true);
+    setGpsError(null);
+    try {
+      const result = await GeoLocationService.requestDeviceLocation();
+      if (GeoLocationService.isError(result)) {
+        setGpsError(result.message);
+        addToast(`GPS: ${result.message}. You can manually adjust coordinates below.`, 'warning');
+      } else {
+        setWizardLocation({
+          latitude: result.latitude,
+          longitude: result.longitude,
+          accuracyMeters: result.accuracyMeters,
+          address: result.address,
+          wardOrVillage: result.ward || 'Ward 1 — Connaught Place & Barakhamba',
+          pincode: result.pincode || '110001',
+          city: result.city || 'New Delhi',
+          district: result.district || 'New Delhi',
+          state: result.state || 'Delhi',
+          roadName: result.roadName || '',
+        });
+        setGpsSource('DEVICE_GPS');
+        addToast(`GPS locked: ±${result.accuracyMeters}m (${result.latitude.toFixed(4)}, ${result.longitude.toFixed(4)})`, 'success');
+      }
+    } catch (err: any) {
+      setGpsError(err?.message || 'Failed to get GPS location');
+    } finally {
+      setIsGpsLoading(false);
+    }
+  };
+
   // Run Real AI CV Analysis during step 2
   const runAiAnalysis = async (imgUrl: string) => {
     setIsAnalyzing(true);
@@ -97,7 +154,7 @@ export const CitizenPortalView: React.FC = () => {
         imgUrl,
         undefined,
         undefined,
-        { latitude: wizardLocation.latitude, longitude: wizardLocation.longitude }
+        wizardLocation.latitude && wizardLocation.longitude ? { latitude: wizardLocation.latitude, longitude: wizardLocation.longitude } : undefined
       );
       setAiAnalysisResult(result);
       if (result.dominantCategory) {
@@ -123,27 +180,106 @@ export const CitizenPortalView: React.FC = () => {
     setActiveTab('report');
   };
 
-  const handleFinishSubmission = () => {
-    const res = CitizenService.submitReport({
-      category: wizardCategory,
-      categoryLabel: wizardCategoryLabel,
-      title: wizardTitle,
-      description: wizardDescription,
-      landmarkNotes: wizardLandmark,
-      location: wizardLocation,
-      imageUrl: wizardImage,
-      detections: (aiAnalysisResult?.detections as BoundingBox[]) || [
-        { id: 'b1', x: 25, y: 30, width: 45, height: 40, label: wizardCategoryLabel, category: wizardCategory, confidence: 92, severity: wizardSeverity },
-      ],
-      severity: wizardSeverity,
-      severityScore: wizardSeverityScore,
-      hazardScore: Math.round(wizardSeverityScore * 0.95),
-      isAnonymous: wizardIsAnonymous,
-    });
-    setSubmittedReceipt(res);
-    setReports(CitizenService.getAllReports());
-    setProfile(CitizenService.getProfile());
-    setWizardStep(10);
+  const handleFinishSubmission = async () => {
+    setIsSubmitting(true);
+    try {
+      let finalImageUrl = wizardImage;
+      // If user uploaded a real image file and Supabase is configured, upload to storage
+      if (wizardImageFile) {
+        try {
+          const uploadedUrl = await supabaseIncidentService.uploadIncidentImage(
+            wizardImageFile,
+            `CIT-${Date.now()}`
+          );
+          if (uploadedUrl) finalImageUrl = uploadedUrl;
+        } catch (uploadErr) {
+          console.warn('Storage upload fallback to dataUrl', uploadErr);
+        }
+      }
+
+      // Ensure valid coordinates (default to New Delhi NDMC if user skipped GPS)
+      const lat = wizardLocation.latitude || 28.6315;
+      const lon = wizardLocation.longitude || 77.2167;
+
+      // 1. Submit to main InfraContext system (persists to Supabase or in-memory, broadcast to map & command center)
+      const newIssue = await createNewIssue({
+        title: wizardTitle || `${wizardCategoryLabel} Reported by Citizen`,
+        description: wizardDescription || `Reported via InfraLens Public Citizen Portal. Landmark: ${wizardLandmark || 'Not specified'}`,
+        category: wizardCategory,
+        categoryLabel: wizardCategoryLabel,
+        detectionType: (aiAnalysisResult?.structuredDetections?.[0]?.type || 'pothole') as any,
+        severity: wizardSeverity,
+        severityScore: wizardSeverityScore,
+        confidence: aiAnalysisResult?.confidence || 92,
+        priority: wizardSeverityScore >= 85 ? 'P1' : 'P2',
+        status: 'pending',
+        location: {
+          latitude: lat,
+          longitude: lon,
+          address: wizardLocation.address || `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+          ward: wizardLocation.wardOrVillage || 'Ward 1 — Connaught Place & Barakhamba',
+          zone: 'Central Commercial & Transit Spine',
+          city: wizardLocation.city || 'New Delhi',
+          district: wizardLocation.district || 'New Delhi',
+          state: wizardLocation.state || 'Delhi',
+          pincode: wizardLocation.pincode || '110001',
+          roadName: wizardLocation.roadName,
+          accuracyMeters: wizardLocation.accuracyMeters || 4.2,
+          gpsSource: gpsSource === 'DEVICE_GPS' ? 'DEVICE_GPS' : 'CITIZEN_MOBILE',
+          locationVerificationStatus: gpsSource === 'DEVICE_GPS' || gpsSource === 'EXIF_METADATA' ? 'VERIFIED_GEOCODED' : 'UNVERIFIED_PROVISIONAL',
+          timestamp: new Date().toISOString(),
+        },
+        imageUrl: finalImageUrl,
+        supportingImages: [finalImageUrl],
+        reporterName: wizardIsAnonymous ? 'Anonymous Citizen' : (currentUser?.fullName || profile.fullName),
+        isAnonymous: wizardIsAnonymous,
+        landmarkNotes: wizardLandmark,
+        recordType: 'CITIZEN_REPORT',
+        verificationStatus: 'UNVERIFIED_PROVISIONAL',
+        reportedBy: 'CITIZEN_FEEDBACK',
+        detections: (aiAnalysisResult?.detections as BoundingBox[]) || [],
+      });
+
+      // 2. Also record in CitizenService local tracking state
+      const res = CitizenService.submitReport({
+        category: wizardCategory,
+        categoryLabel: wizardCategoryLabel,
+        title: wizardTitle || `${wizardCategoryLabel} report`,
+        description: wizardDescription,
+        landmarkNotes: wizardLandmark,
+        location: {
+          latitude: lat,
+          longitude: lon,
+          address: wizardLocation.address || 'Reported Location',
+          pincode: wizardLocation.pincode || '110001',
+          wardOrVillage: wizardLocation.wardOrVillage || 'Ward 1',
+        },
+        imageUrl: finalImageUrl,
+        detections: (aiAnalysisResult?.detections as BoundingBox[]) || [
+          { id: 'b1', x: 25, y: 30, width: 45, height: 40, label: wizardCategoryLabel, category: wizardCategory, confidence: 92, severity: wizardSeverity },
+        ],
+        severity: wizardSeverity,
+        severityScore: wizardSeverityScore,
+        hazardScore: Math.round(wizardSeverityScore * 0.95),
+        isAnonymous: wizardIsAnonymous,
+      });
+
+      if (newIssue) {
+        res.report.trackingCode = newIssue.issueCode;
+        setSubmittedIssueCode(newIssue.issueCode);
+      }
+
+      setSubmittedReceipt(res);
+      setReports(CitizenService.getAllReports());
+      setProfile(CitizenService.getProfile());
+      setWizardStep(10);
+      addToast(`Incident ${newIssue.issueCode} registered! Visible on GIS Map.`, 'success');
+    } catch (err: any) {
+      console.error('Submission failed', err);
+      addToast(`Submission error: ${err?.message || 'Check connection'}`, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -406,17 +542,45 @@ export const CitizenPortalView: React.FC = () => {
                               <Camera className="w-3.5 h-3.5" />
                               Take a Photo
                             </button>
-                            <label className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer border border-slate-700 transition-colors">
+                            <label className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer border border-slate-700 transition-colors flex items-center gap-1.5">
+                              <Upload className="w-3.5 h-3.5" />
                               Browse Files
                               <input
                                 type="file"
                                 accept="image/*"
-                                onChange={(e) => {
+                                onChange={async (e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
+                                    setWizardImageFile(file);
                                     const reader = new FileReader();
-                                    reader.onload = (ev) => {
-                                      if (ev.target?.result) setWizardImage(ev.target.result as string);
+                                    reader.onload = async (ev) => {
+                                      if (ev.target?.result) {
+                                        const dataUrl = ev.target.result as string;
+                                        setWizardImage(dataUrl);
+                                        // Attempt EXIF GPS extraction
+                                        try {
+                                          const exif = await GeoLocationService.extractExifGps(file);
+                                          if (exif) {
+                                            const geocoded = await GeoLocationService.reverseGeocode(exif.latitude, exif.longitude);
+                                            setWizardLocation({
+                                              latitude: exif.latitude,
+                                              longitude: exif.longitude,
+                                              accuracyMeters: 5,
+                                              address: geocoded?.address || `${exif.latitude.toFixed(5)}, ${exif.longitude.toFixed(5)}`,
+                                              wardOrVillage: geocoded?.ward || '',
+                                              city: geocoded?.city || '',
+                                              district: geocoded?.district || '',
+                                              state: geocoded?.state || '',
+                                              pincode: geocoded?.pincode || '',
+                                              roadName: geocoded?.roadName || '',
+                                            });
+                                            setGpsSource('EXIF_METADATA');
+                                            addToast(`GPS extracted from photo EXIF metadata: (${exif.latitude.toFixed(4)}, ${exif.longitude.toFixed(4)})`, 'success');
+                                          }
+                                        } catch {
+                                          // Ignore EXIF failure
+                                        }
+                                      }
                                     };
                                     reader.readAsDataURL(file);
                                   }
@@ -525,41 +689,115 @@ export const CitizenPortalView: React.FC = () => {
                 {/* STEP 3: LOCATION PINNING */}
                 {wizardStep === 3 && (
                   <div className="space-y-5">
-                    <div>
-                      <h3 className="text-lg font-bold text-white">Step 3: Geolocation Pinning & Address</h3>
-                      <p className="text-xs text-slate-400">Confirm the physical coordinates of the reported infrastructure problem.</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-bold text-white">Step 3: Geolocation Pinning & Address</h3>
+                        <p className="text-xs text-slate-400">Acquire exact physical coordinates via device GPS, photo EXIF, or manual entry.</p>
+                      </div>
+
+                      {/* GPS Auto-Detect Button */}
+                      <button
+                        type="button"
+                        onClick={handleAcquireGps}
+                        disabled={isGpsLoading}
+                        className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 whitespace-nowrap"
+                      >
+                        {isGpsLoading ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Locking Satellites...
+                          </>
+                        ) : (
+                          <>
+                            <Navigation className="w-3.5 h-3.5" />
+                            Detect Device GPS
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {gpsError && (
+                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>GPS Notice: {gpsError}. Please select a verified landmark preset or type manually.</span>
+                      </div>
+                    )}
+
+                    {/* Quick Landmark Presets */}
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] font-mono text-slate-400">Verified Municipal Location Presets (New Delhi NDMC):</span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { name: 'Connaught Place', lat: 28.6315, lon: 77.2167, ward: 'Ward 1 — Connaught Place & Barakhamba', addr: 'Radial Road 2, Inner Circle, Connaught Place' },
+                          { name: 'Chanakyapuri', lat: 28.5912, lon: 77.1856, ward: 'Ward 2 — Chanakyapuri Diplomatic Enclave', addr: 'Shanti Path, Chanakyapuri Diplomatic Enclave' },
+                          { name: 'Sarojini Nagar', lat: 28.5742, lon: 77.1989, ward: 'Ward 3 — Sarojini Nagar & Safdarjung', addr: 'Brigadier Hoshiar Singh Marg, Sarojini Nagar' },
+                          { name: 'AIIMS / Ansari Nagar', lat: 28.5672, lon: 77.2100, ward: 'Ward 3 — Sarojini Nagar & Safdarjung', addr: 'Sri Aurobindo Marg near AIIMS Trauma Center' },
+                        ].map((p) => (
+                          <button
+                            key={p.name}
+                            type="button"
+                            onClick={() => {
+                              setWizardLocation({
+                                latitude: p.lat,
+                                longitude: p.lon,
+                                address: p.addr,
+                                wardOrVillage: p.ward,
+                                pincode: '110001',
+                                city: 'New Delhi',
+                                district: 'New Delhi',
+                                state: 'Delhi',
+                                roadName: p.addr.split(',')[0],
+                                accuracyMeters: 3.5,
+                              });
+                              setGpsSource('MANUAL');
+                              addToast(`Location set to ${p.name}`, 'info');
+                            }}
+                            className={`p-2 rounded-lg border text-left text-xs transition-all ${
+                              Math.abs(wizardLocation.latitude - p.lat) < 0.001
+                                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300 font-semibold'
+                                : 'border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-700'
+                            }`}
+                          >
+                            <div className="font-semibold truncate">{p.name}</div>
+                            <div className="text-[10px] text-slate-500 font-mono truncate">{p.lat.toFixed(3)}°, {p.lon.toFixed(3)}°</div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-3">
                         <div>
-                          <label className="text-xs font-mono text-slate-400">Detected Street Address</label>
+                          <label className="text-xs font-mono text-slate-400">Street Address / Landmark</label>
                           <input
                             type="text"
                             value={wizardLocation.address}
                             onChange={(e) => setWizardLocation({ ...wizardLocation, address: e.target.value })}
+                            placeholder="e.g. Radial Road 2, Inner Circle, Connaught Place"
                             className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-sm focus:border-emerald-500 focus:outline-none"
                           />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="text-xs font-mono text-slate-400">Latitude</label>
+                            <label className="text-xs font-mono text-slate-400">Latitude (°N)</label>
                             <input
                               type="number"
                               step="0.0001"
-                              value={wizardLocation.latitude}
-                              onChange={(e) => setWizardLocation({ ...wizardLocation, latitude: parseFloat(e.target.value) })}
+                              value={wizardLocation.latitude || ''}
+                              onChange={(e) => setWizardLocation({ ...wizardLocation, latitude: parseFloat(e.target.value) || 0 })}
+                              placeholder="28.6315"
                               className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 font-mono text-xs focus:border-emerald-500 focus:outline-none"
                             />
                           </div>
                           <div>
-                            <label className="text-xs font-mono text-slate-400">Longitude</label>
+                            <label className="text-xs font-mono text-slate-400">Longitude (°E)</label>
                             <input
                               type="number"
                               step="0.0001"
-                              value={wizardLocation.longitude}
-                              onChange={(e) => setWizardLocation({ ...wizardLocation, longitude: parseFloat(e.target.value) })}
+                              value={wizardLocation.longitude || ''}
+                              onChange={(e) => setWizardLocation({ ...wizardLocation, longitude: parseFloat(e.target.value) || 0 })}
+                              placeholder="77.2167"
                               className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 font-mono text-xs focus:border-emerald-500 focus:outline-none"
                             />
                           </div>
@@ -572,15 +810,17 @@ export const CitizenPortalView: React.FC = () => {
                               type="text"
                               value={wizardLocation.pincode}
                               onChange={(e) => setWizardLocation({ ...wizardLocation, pincode: e.target.value })}
+                              placeholder="110001"
                               className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 font-mono text-xs focus:border-emerald-500 focus:outline-none"
                             />
                           </div>
                           <div>
-                            <label className="text-xs font-mono text-slate-400">Ward / Village</label>
+                            <label className="text-xs font-mono text-slate-400">Ward / Jurisdiction</label>
                             <input
                               type="text"
                               value={wizardLocation.wardOrVillage}
                               onChange={(e) => setWizardLocation({ ...wizardLocation, wardOrVillage: e.target.value })}
+                              placeholder="Ward 1 — Connaught Place & Barakhamba"
                               className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:border-emerald-500 focus:outline-none"
                             />
                           </div>
@@ -588,18 +828,29 @@ export const CitizenPortalView: React.FC = () => {
                       </div>
 
                       {/* Map Snapshot Container */}
-                      <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 flex flex-col items-center justify-center text-center space-y-3">
+                      <div className="rounded-xl border border-slate-800 bg-slate-950 p-5 flex flex-col items-center justify-center text-center space-y-3">
                         <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
                           <MapPin className="w-6 h-6 text-emerald-400" />
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-white">GPS Coordinates Resolved</p>
+                          <p className="text-sm font-semibold text-white">Geospatial Coordinates</p>
                           <p className="text-xs text-slate-400 font-mono mt-0.5">
-                            {wizardLocation.latitude.toFixed(4)}° N, {wizardLocation.longitude.toFixed(4)}° E
+                            {wizardLocation.latitude ? `${wizardLocation.latitude.toFixed(5)}° N, ${wizardLocation.longitude.toFixed(5)}° E` : 'Coordinates pending acquisition'}
                           </p>
                         </div>
-                        <div className="text-[11px] text-emerald-400/90 font-mono bg-emerald-500/5 px-3 py-1.5 rounded-lg border border-emerald-500/15">
-                          ✓ Geolocation verified inside municipal boundary
+                        <div className="text-[11px] font-mono px-3 py-1.5 rounded-lg border flex items-center gap-1.5 justify-center bg-slate-900 border-slate-800">
+                          {gpsSource === 'DEVICE_GPS' && (
+                            <span className="text-emerald-400">✓ Device GPS Locked (±{wizardLocation.accuracyMeters}m RTK)</span>
+                          )}
+                          {gpsSource === 'EXIF_METADATA' && (
+                            <span className="text-cyan-400">✓ EXIF Geotag Extracted from Image</span>
+                          )}
+                          {gpsSource === 'MANUAL' && (
+                            <span className="text-amber-400">✓ Manual / Landmark Preset Coordinates</span>
+                          )}
+                          {!gpsSource && (
+                            <span className="text-slate-400">Click "Detect Device GPS" or select a preset</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -884,7 +1135,7 @@ export const CitizenPortalView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-center gap-3 pt-2">
+                    <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                       <button
                         onClick={() => {
                           setSelectedReportForTracking(submittedReceipt.report);
@@ -893,6 +1144,14 @@ export const CitizenPortalView: React.FC = () => {
                         className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs transition-all flex items-center gap-2"
                       >
                         <Search className="w-3.5 h-3.5" /> Track This Report
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCurrentView('map');
+                        }}
+                        className="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs transition-all flex items-center gap-2 shadow-md shadow-cyan-900/40"
+                      >
+                        <MapPin className="w-3.5 h-3.5" /> View on GIS Map
                       </button>
                       <button
                         onClick={() => setActiveTab('overview')}
@@ -909,7 +1168,7 @@ export const CitizenPortalView: React.FC = () => {
                   <div className="flex items-center justify-between pt-6 border-t border-slate-800 mt-6">
                     <button
                       onClick={() => setWizardStep(Math.max(1, wizardStep - 1))}
-                      disabled={wizardStep === 1}
+                      disabled={wizardStep === 1 || isSubmitting}
                       className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none text-slate-300 text-xs font-medium flex items-center gap-1.5"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" /> Previous
@@ -918,9 +1177,18 @@ export const CitizenPortalView: React.FC = () => {
                     {wizardStep === 9 ? (
                       <button
                         onClick={handleFinishSubmission}
-                        className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+                        disabled={isSubmitting}
+                        className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
                       >
-                        <Send className="w-3.5 h-3.5" /> Submit to Municipal Operations
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Registering Incident...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-3.5 h-3.5" /> Submit to Municipal Operations
+                          </>
+                        )}
                       </button>
                     ) : (
                       <button

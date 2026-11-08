@@ -200,6 +200,11 @@ export interface Issue {
   createdAt: string;
   updatedAt: string;
   reportedBy: 'AI_SURVEILLANCE' | 'MUNICIPAL_PATROL' | 'CITIZEN_FEEDBACK' | 'UAV_SCAN';
+  description?: string;
+  reporterName?: string;
+  isAnonymous?: boolean;
+  landmarkNotes?: string;
+  communityConfirmations?: number;
   notes?: string;
   resolutionComparison?: ResolutionComparison;
   // Verification and Operational Fields (Phase 2 & Phase 3)
@@ -210,6 +215,14 @@ export interface Issue {
   supportingImages?: string[];
   inspectionHistory?: { timestamp: string; inspector: string; findings: string; status: string }[];
 }
+
+export type CreateIssueInput = Omit<Issue, 'id' | 'issueCode' | 'createdAt' | 'updatedAt' | 'lifecycle' | 'authorityId' | 'authorityName' | 'impact'> & {
+  authorityId?: string;
+  authorityName?: string;
+  impact?: ImpactAssessment;
+  reportedBy?: 'AI_SURVEILLANCE' | 'MUNICIPAL_PATROL' | 'CITIZEN_FEEDBACK' | 'UAV_SCAN';
+  detections?: BoundingBox[];
+};
 
 export interface ResolutionComparison {
   beforeSeverityScore: number;

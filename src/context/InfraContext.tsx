@@ -6,12 +6,16 @@ import {
   AuditEvent, 
   ResolutionStatus,
   DBSCANCluster,
-  CityHealthMetrics
+  CityHealthMetrics,
+  CreateIssueInput
 } from '../types/infrastructure';
 import { AppView, FilterState } from '../types/navigation';
 import { infrastructureService } from '../services/infrastructureService';
+import { supabaseIncidentService } from '../services/supabaseIncidentService';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { UserSession } from '../types/auth';
 import { authService } from '../services/authService';
+import { supabaseAuthService } from '../services/supabaseAuthService';
 import { t as translateHelper } from '../i18n/translations';
 
 export interface ToastItem {
@@ -72,7 +76,7 @@ interface InfraContextType {
   // Actions
   updateIssueStatus: (id: string, status: ResolutionStatus, notes?: string) => Promise<void>;
   assignAuthority: (issueId: string, authorityId: string) => Promise<void>;
-  createNewIssue: (data: Omit<Issue, 'id' | 'issueCode' | 'createdAt' | 'updatedAt' | 'lifecycle'>) => Promise<Issue>;
+  createNewIssue: (data: CreateIssueInput) => Promise<Issue>;
   
   // Notifications & Toasts
   notifications: NotificationItem[];
@@ -129,8 +133,10 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isLoading, setIsLoading] = useState(true);
   const [realtimeActive, setRealtimeActive] = useState(true);
 
-  // Authentication & RBAC User Session
-  const [currentUser, setCurrentUser] = useState<UserSession | null>(() => authService.getCurrentSession());
+  // Authentication — sync from supabaseAuthService on mount
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(() => 
+    supabaseAuthService.getCurrentSessionSync() ?? authService.getCurrentSession()
+  );
 
   // Regional 9-Language Localization
   const [currentLanguage, setCurrentLanguage] = useState<string>('en');
@@ -208,9 +214,10 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  // Sync data from infrastructureService
+  // Sync data — uses Supabase when configured, falls back to in-memory
   const syncData = async () => {
     try {
+      const dataService = isSupabaseConfigured ? supabaseIncidentService : infrastructureService;
       const [
         loadedIssues,
         loadedClusters,
@@ -219,12 +226,12 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         loadedCityHealth,
         loadedAudits,
       ] = await Promise.all([
-        infrastructureService.getIssues(),
-        infrastructureService.getClusters(),
-        infrastructureService.getAuthorities(),
-        infrastructureService.getAnalyticsSummary(),
-        infrastructureService.getCityHealthMetrics(),
-        infrastructureService.getAuditEvents(),
+        dataService.getIssues(),
+        dataService.getClusters(),
+        dataService.getAuthorities(),
+        dataService.getAnalyticsSummary(),
+        dataService.getCityHealthMetrics(),
+        dataService.getAuditEvents(),
       ]);
       setIssues(loadedIssues);
       setClusters(loadedClusters);
@@ -239,21 +246,46 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Initial Load & Real-Time Subscription
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
+    let unsubscribeInMemory: (() => void) | undefined;
+    let unsubscribeRealtime: (() => void) | null = null;
+
     const init = async () => {
       setIsLoading(true);
       await syncData();
       setIsLoading(false);
 
-      // Subscribe to real-time service bus
-      unsubscribe = infrastructureService.subscribe(() => {
-        syncData();
-      });
+      if (isSupabaseConfigured) {
+        // Real-time sync via Supabase Realtime
+        unsubscribeRealtime = supabaseIncidentService.subscribeToRealtime(
+          (newIssue) => {
+            // New incident inserted — add to map immediately
+            setIssues((prev) => {
+              const exists = prev.some((i) => i.id === newIssue.id);
+              if (exists) return prev;
+              return [newIssue, ...prev];
+            });
+            setRealtimeActive(true);
+            addToast(`New incident ${newIssue.issueCode} received in real-time`, 'info');
+          },
+          (updatedIssue) => {
+            // Incident updated — sync map marker and drawer
+            setIssues((prev) => prev.map((i) => i.id === updatedIssue.id ? updatedIssue : i));
+            setSelectedIssue((prev) => prev?.id === updatedIssue.id ? updatedIssue : prev);
+          }
+        );
+      } else {
+        // In-memory bus subscription (fallback)
+        unsubscribeInMemory = infrastructureService.subscribe(() => {
+          syncData();
+        });
+      }
     };
+
     init();
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsubscribeInMemory) unsubscribeInMemory();
+      if (unsubscribeRealtime) unsubscribeRealtime();
     };
   }, []);
 
@@ -361,7 +393,8 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const updateIssueStatus = async (id: string, status: ResolutionStatus, notes?: string) => {
     try {
-      const updated = await infrastructureService.updateIssueStatus(id, status, notes);
+      const dataService = isSupabaseConfigured ? supabaseIncidentService : infrastructureService;
+      const updated = await dataService.updateIssueStatus(id, status, notes, currentUser?.fullName);
       setIssues((prev) => prev.map((i) => (i.id === id ? updated : i)));
       if (selectedIssue && selectedIssue.id === id) {
         setSelectedIssue(updated);
@@ -375,7 +408,8 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const assignAuthority = async (issueId: string, authorityId: string) => {
     try {
-      const updated = await infrastructureService.assignAuthority(issueId, authorityId);
+      const dataService = isSupabaseConfigured ? supabaseIncidentService : infrastructureService;
+      const updated = await dataService.assignAuthority(issueId, authorityId);
       setIssues((prev) => prev.map((i) => (i.id === issueId ? updated : i)));
       if (selectedIssue && selectedIssue.id === issueId) {
         setSelectedIssue(updated);
@@ -388,10 +422,13 @@ export const InfraProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const createNewIssue = async (
-    data: Omit<Issue, 'id' | 'issueCode' | 'createdAt' | 'updatedAt' | 'lifecycle'>
+    data: CreateIssueInput
   ) => {
     try {
-      const created = await infrastructureService.createIssue(data);
+      const dataService = isSupabaseConfigured ? supabaseIncidentService : infrastructureService;
+      const created = await dataService.createIssue(data);
+      // Optimistically add to map immediately (realtime will also broadcast if Supabase)
+      setIssues((prev) => [created, ...prev]);
       addToast(`New incident ${created.issueCode} registered into Command Center (${created.priority})`, 'success');
       return created;
     } catch (err) {

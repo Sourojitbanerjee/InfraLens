@@ -7,6 +7,7 @@ import { DetectionServiceFactory, LocalCvDetectionService, RealDetectionService 
 import { SeverityIndicator } from '../common/SeverityIndicator';
 import { Modal } from '../common/Modal';
 import { CameraCaptureModal } from '../common/CameraCaptureModal';
+import { GeoLocationService } from '../../services/geoLocationService';
 import { 
   Scan, 
   Send, 
@@ -26,7 +27,9 @@ import {
   Info,
   XCircle,
   HelpCircle,
-  Server
+  Server,
+  Navigation,
+  Loader2
 } from 'lucide-react';
 
 export const AnalyzeView: React.FC = () => {
@@ -46,8 +49,22 @@ export const AnalyzeView: React.FC = () => {
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [showAnnotations, setShowAnnotations] = useState(true);
   const [showTelemetryDrawer, setShowTelemetryDrawer] = useState(false);
+  const [isGpsLoading, setIsGpsLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDetectGps = async () => {
+    setIsGpsLoading(true);
+    try {
+      const loc = await GeoLocationService.requestDeviceLocation();
+      if (!GeoLocationService.isError(loc)) {
+        setCoordinates({ lat: loc.latitude, lon: loc.longitude });
+        setCustomImageLocation(loc.address);
+      }
+    } finally {
+      setIsGpsLoading(false);
+    }
+  };
 
   const handleSwitchEngine = (type: 'local' | 'real') => {
     setActiveEngineType(type);
@@ -93,9 +110,21 @@ export const AnalyzeView: React.FC = () => {
     startAnalysis(preset.imageUrl, preset.id);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Check EXIF
+      try {
+        const exif = await GeoLocationService.extractExifGps(file);
+        if (exif) {
+          setCoordinates({ lat: exif.latitude, lon: exif.longitude });
+          const geocoded = await GeoLocationService.reverseGeocode(exif.latitude, exif.longitude);
+          if (geocoded?.address) setCustomImageLocation(geocoded.address);
+        }
+      } catch {
+        // Continue without EXIF
+      }
+
       const reader = new FileReader();
       reader.onload = (event: ProgressEvent<FileReader>) => {
         const dataUrl = event.target?.result as string;
@@ -106,10 +135,22 @@ export const AnalyzeView: React.FC = () => {
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file) {
+      // Check EXIF
+      try {
+        const exif = await GeoLocationService.extractExifGps(file);
+        if (exif) {
+          setCoordinates({ lat: exif.latitude, lon: exif.longitude });
+          const geocoded = await GeoLocationService.reverseGeocode(exif.latitude, exif.longitude);
+          if (geocoded?.address) setCustomImageLocation(geocoded.address);
+        }
+      } catch {
+        // Continue without EXIF
+      }
+
       const reader = new FileReader();
       reader.onload = (event: ProgressEvent<FileReader>) => {
         const dataUrl = event.target?.result as string;
@@ -588,7 +629,7 @@ export const AnalyzeView: React.FC = () => {
 
               <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5 justify-center sm:justify-start">
                 <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
-                <span>{coordinates.lat.toFixed(4)}° N, {coordinates.lon.toFixed(4)}° W</span>
+                <span>{coordinates.lat.toFixed(4)}° N, {coordinates.lon.toFixed(4)}° E</span>
               </div>
             </div>
 
@@ -992,9 +1033,20 @@ export const AnalyzeView: React.FC = () => {
         title="Set Manual GPS Geolocation Pin"
       >
         <div className="space-y-4 font-mono text-xs">
-          <p className="text-slate-400">
-            Override optical GPS coordinates when EXIF metadata is unavailable:
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-slate-400">
+              Set or detect optical GPS coordinates for this analysis:
+            </p>
+            <button
+              type="button"
+              onClick={handleDetectGps}
+              disabled={isGpsLoading}
+              className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 flex items-center gap-1.5 text-xs font-semibold"
+            >
+              {isGpsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Navigation className="w-3 h-3" />}
+              {isGpsLoading ? 'Detecting...' : 'Detect Device GPS'}
+            </button>
+          </div>
 
           <div className="space-y-3">
             <div>
