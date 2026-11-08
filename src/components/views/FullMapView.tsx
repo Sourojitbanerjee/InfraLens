@@ -4,7 +4,7 @@ import { useInfra } from '../../context/InfraContext';
 import { GisMap } from '../map/GisMap';
 import { SeverityIndicator } from '../common/SeverityIndicator';
 import { DBSCANCluster, Issue, RoadSegment } from '../../types/infrastructure';
-import { METRO_ROADS } from '../../services/gisEngine';
+import { METRO_ROADS, METRO_WARDS } from '../../services/gisEngine';
 import { 
   Layers, 
   MapPin, 
@@ -42,7 +42,7 @@ export const FullMapView: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'drilldown' | 'clusters' | 'inspector'>('drilldown');
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>('CL-027');
-  const [selectedRoadId, setSelectedRoadId] = useState<string | null>('road-bryant');
+  const [selectedRoadId, setSelectedRoadId] = useState<string | null>('road-inner-circle');
 
   const activeCluster = clusters.find((c) => c.clusterId === selectedClusterId) || clusters[0];
   const clusterMemberIssues = activeCluster
@@ -100,11 +100,12 @@ export const FullMapView: React.FC = () => {
               filters.ward !== 'all' ? 'text-cyan-300 font-bold border-cyan-500/30' : 'text-slate-400'
             }`}
           >
-            <option value="all">All Wards</option>
-            <option value="Ward 6">Ward 6 — Mission & SOMA</option>
-            <option value="Ward 3">Ward 3 — Civic & Financial</option>
-            <option value="Ward 9">Ward 9 — Mission District</option>
-            <option value="Ward 5">Ward 5 — Western Addition</option>
+            <option value="all">All NDMC Wards</option>
+            {METRO_WARDS.map((w) => (
+              <option key={w.id} value={w.name.split('—')[0].trim()}>
+                {w.name}
+              </option>
+            ))}
           </select>
 
           {/* Level 3: Road Corridor */}
@@ -269,7 +270,7 @@ export const FullMapView: React.FC = () => {
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                        <span>Lincoln High School 180m away</span>
+                        <span>Modern School Barakhamba 180m away</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
@@ -326,7 +327,7 @@ export const FullMapView: React.FC = () => {
                       RESPONSIBLE AUTHORITY
                     </div>
                     <div className="text-xs font-bold text-slate-200">
-                      Municipal Roads Department
+                      NDMC Civil Roads & Infrastructure Division
                     </div>
                     <div className="text-[11px] text-slate-400">
                       Pavement Maintenance & Highway Infrastructure Div.

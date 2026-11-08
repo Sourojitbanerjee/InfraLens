@@ -25,40 +25,40 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile }) => {
-  const { currentView, setCurrentView, stats } = useInfra();
+  const { currentView, setCurrentView, stats, t } = useInfra();
 
   const primaryNavItems: { id: AppView; label: string; icon: React.ReactNode; badge?: string | number; badgeVariant?: 'rose' | 'amber' | 'cyan' | 'slate' | 'emerald' }[] = [
     {
       id: 'dashboard',
-      label: 'Command Center',
+      label: t('nav.command_center'),
       icon: <LayoutDashboard className="w-4 h-4" />,
       badge: stats.activeIssues,
       badgeVariant: 'cyan',
     },
     {
       id: 'map',
-      label: 'Infrastructure Map',
+      label: t('nav.map'),
       icon: <MapPin className="w-4 h-4" />,
       badge: 'GIS',
       badgeVariant: 'slate',
     },
     {
       id: 'analyze',
-      label: 'AI Street Analysis',
+      label: t('nav.analyze'),
       icon: <Camera className="w-4 h-4" />,
       badge: 'LIVE',
       badgeVariant: 'amber',
     },
     {
       id: 'queue',
-      label: 'Priority Queue',
+      label: t('nav.queue'),
       icon: <ListOrdered className="w-4 h-4" />,
       badge: stats.critical,
       badgeVariant: 'rose',
     },
     {
       id: 'analytics',
-      label: 'Analytics & Intel',
+      label: t('nav.analytics'),
       icon: <BarChart3 className="w-4 h-4" />,
     },
   ];
@@ -66,35 +66,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
   const civicRoleItems: { id: AppView; label: string; icon: React.ReactNode; badge?: string | number; badgeVariant?: 'rose' | 'amber' | 'cyan' | 'slate' | 'emerald' }[] = [
     {
       id: 'citizen-portal',
-      label: 'Citizen Portal',
+      label: t('nav.citizen_portal'),
       icon: <Shield className="w-4 h-4" />,
       badge: 'CITIZEN',
       badgeVariant: 'emerald',
     },
     {
       id: 'chief-inspector',
-      label: 'Chief Field Inspector',
+      label: t('nav.chief_inspector'),
       icon: <Users className="w-4 h-4" />,
       badge: 'REVIEW',
       badgeVariant: 'cyan',
     },
     {
       id: 'supervisor',
-      label: 'Dept Supervisor',
+      label: t('nav.supervisor'),
       icon: <Briefcase className="w-4 h-4" />,
       badge: 'ORDERS',
       badgeVariant: 'amber',
     },
     {
       id: 'inspector-mobile',
-      label: 'Field Mobile Inspector',
+      label: t('nav.inspector_mobile'),
       icon: <Smartphone className="w-4 h-4" />,
       badge: 'GPS',
       badgeVariant: 'emerald',
     },
     {
       id: 'super-admin',
-      label: 'Super Admin Portal',
+      label: t('nav.super_admin'),
       icon: <ShieldAlert className="w-4 h-4" />,
       badge: 'GLOBAL',
       badgeVariant: 'rose',
@@ -104,17 +104,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
   const systemItems: { id: AppView; label: string; icon: React.ReactNode }[] = [
     {
       id: 'landing',
-      label: 'Platform Overview',
+      label: t('nav.platform_overview'),
       icon: <Globe className="w-4 h-4" />,
     },
     {
       id: 'authorities',
-      label: 'Authorities Matrix',
+      label: t('nav.authorities'),
       icon: <Building2 className="w-4 h-4" />,
     },
     {
       id: 'activity',
-      label: 'Audit & Activity',
+      label: t('nav.activity'),
       icon: <Activity className="w-4 h-4" />,
     },
   ];

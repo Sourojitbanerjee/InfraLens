@@ -35,6 +35,7 @@ import { InfrastructureCategory, Severity, BoundingBox } from '../../types/infra
 import { SAMPLE_STREET_IMAGES } from '../../data/sampleStreetImages';
 import { AiVisionService, AiInferenceResult } from '../../services/aiVisionService';
 import { SeverityIndicator } from '../common/SeverityIndicator';
+import { CameraCaptureModal } from '../common/CameraCaptureModal';
 
 export const CitizenPortalView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'report' | 'nearby' | 'track' | 'settings'>('overview');
@@ -48,6 +49,7 @@ export const CitizenPortalView: React.FC = () => {
   const [wizardStep, setWizardStep] = useState<number>(1);
   const [wizardImage, setWizardImage] = useState<string>(SAMPLE_STREET_IMAGES[0]?.imageUrl || '');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState<boolean>(false);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<AiInferenceResult | null>(null);
   const [wizardLocation, setWizardLocation] = useState({
     latitude: 28.6315,
@@ -386,10 +388,43 @@ export const CitizenPortalView: React.FC = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-3">
-                        <div className="border-2 border-dashed border-slate-700 hover:border-emerald-500/50 rounded-xl p-6 text-center bg-slate-950/60 transition-all flex flex-col items-center justify-center min-h-[220px]">
-                          <Camera className="w-10 h-10 text-emerald-400 mb-2" />
-                          <p className="text-sm text-slate-200 font-medium">Capture Live Camera Photo</p>
-                          <p className="text-xs text-slate-400 mt-1">Supports smartphone camera, drag-and-drop, or JPG/PNG files</p>
+                        <div className="border-2 border-dashed border-slate-700 hover:border-emerald-500/50 rounded-xl p-6 text-center bg-slate-950/60 transition-all flex flex-col items-center justify-center min-h-[220px] space-y-3">
+                          <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                            <Camera className="w-6 h-6 text-emerald-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-slate-200 font-bold">Capture or Select Infrastructure Photo</p>
+                            <p className="text-xs text-slate-400 mt-0.5">Use your device camera or pick a verified sample preset below</p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setIsCameraModalOpen(true)}
+                              className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              Take a Photo
+                            </button>
+                            <label className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer border border-slate-700 transition-colors">
+                              Browse Files
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = (ev) => {
+                                      if (ev.target?.result) setWizardImage(ev.target.result as string);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
                         </div>
 
                         <div className="text-xs text-slate-400 font-mono">
@@ -1126,6 +1161,16 @@ export const CitizenPortalView: React.FC = () => {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Citizen Device Camera Live Modal */}
+      <CameraCaptureModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={(dataUrl) => {
+          setWizardImage(dataUrl);
+        }}
+        title="Capture Civic Infrastructure Evidence"
+      />
     </div>
   );
 };

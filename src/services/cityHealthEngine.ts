@@ -43,12 +43,12 @@ export class CityHealthEngine {
 
     // Identify worst-performing ward
     const sortedWards = [...wards].sort((a, b) => a.healthScore - b.healthScore);
-    const worst = sortedWards[0] || { wardId: 'ward-6', name: 'Ward 6 — Mission & SOMA', healthScore: 64 };
+    const worst = sortedWards[0] || { wardId: 'ward-sarojini', name: 'Ward 3 — Sarojini Nagar & Safdarjung', healthScore: 64 };
 
     // Identify most improved ward
     const mostImproved = {
-      id: 'ward-3',
-      name: 'Ward 3 — Civic & Financial',
+      id: 'ward-cp',
+      name: 'Ward 1 — Connaught Place & Barakhamba',
       score: 79,
       improvement: 4.8,
     };

@@ -18,9 +18,11 @@ import {
   Shield,
   Briefcase,
   Users,
-  Smartphone
+  Smartphone,
+  KeyRound
 } from 'lucide-react';
-import { SUPPORTED_LANGUAGES, LanguageOption } from '../../i18n/translations';
+import { SUPPORTED_LANGUAGES } from '../../i18n/translations';
+import { authService } from '../../services/authService';
 
 interface HeaderProps {
   onToggleMobileMenu?: () => void;
@@ -99,14 +101,20 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
     clearAllNotifications,
     stats,
     openDetailDrawer,
-    issues
+    issues,
+    currentUser,
+    setCurrentUser,
+    setIsAuthModalOpen,
+    currentLanguage,
+    setCurrentLanguage,
+    t
   } = useInfra();
 
   const [currentTime, setCurrentTime] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<LanguageOption>(SUPPORTED_LANGUAGES[0]);
+  const selectedLanguage = SUPPORTED_LANGUAGES.find((l) => l.code === currentLanguage) || SUPPORTED_LANGUAGES[0];
   const [activeIdentityKey, setActiveIdentityKey] = useState<string>('director');
 
   const activeIdentity = IDENTITIES[activeIdentityKey];
@@ -131,6 +139,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
 
   const handleSwitchIdentity = (key: string) => {
     setActiveIdentityKey(key);
+    const session = authService.loginAsDemoPersona(key);
+    setCurrentUser(session);
     setShowProfileMenu(false);
     setCurrentView(IDENTITIES[key].targetView);
   };
@@ -191,7 +201,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
         >
           <div className="flex items-center gap-2.5">
             <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-            <span>Search defects, work orders, wards...</span>
+            <span>{t('header.search_placeholder')}</span>
           </div>
           <kbd className="flex items-center gap-1 text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-300 border border-slate-700">
             <span>⌘</span>
@@ -228,7 +238,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
                   <button
                     key={lang.code}
                     onClick={() => {
-                      setSelectedLanguage(lang);
+                      setCurrentLanguage(lang.code);
                       setShowLanguageMenu(false);
                     }}
                     className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between ${
@@ -382,6 +392,19 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
                     {activeIdentityKey === item.key && <CheckCircle className="w-4 h-4 text-cyan-400 shrink-0" />}
                   </button>
                 ))}
+              </div>
+
+              <div className="mt-2 pt-2 border-t border-slate-800">
+                <button
+                  onClick={() => {
+                    setIsAuthModalOpen(true);
+                    setShowProfileMenu(false);
+                  }}
+                  className="w-full py-2 px-3 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 font-bold flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>Account & Verification Console</span>
+                </button>
               </div>
             </div>
           )}

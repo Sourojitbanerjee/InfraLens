@@ -6,12 +6,14 @@ import { AiVisionService, AnalysisStage, AiInferenceResult } from '../../service
 import { DetectionServiceFactory, LocalCvDetectionService, RealDetectionService } from '../../services/detectionService';
 import { SeverityIndicator } from '../common/SeverityIndicator';
 import { Modal } from '../common/Modal';
+import { CameraCaptureModal } from '../common/CameraCaptureModal';
 import { 
   Scan, 
   Send, 
   RotateCcw, 
   MapPin, 
   FileImage,
+  Camera,
   Cpu,
   ShieldCheck,
   Building2,
@@ -36,9 +38,10 @@ export const AnalyzeView: React.FC = () => {
   const [activePresetId, setActivePresetId] = useState<string>(SAMPLE_STREET_IMAGES[0].id);
   const [inferenceResult, setInferenceResult] = useState<AiInferenceResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [customImageLocation, setCustomImageLocation] = useState('4th Street & Bryant Blvd Corridor');
-  const [coordinates, setCoordinates] = useState<{ lat: number; lon: number }>({ lat: 37.7792, lon: -122.4191 });
+  const [customImageLocation, setCustomImageLocation] = useState('Radial Road 2, Inner Circle Corridor, Connaught Place, New Delhi');
+  const [coordinates, setCoordinates] = useState<{ lat: number; lon: number }>({ lat: 28.6315, lon: 77.2167 });
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [activeEngineType, setActiveEngineType] = useState<'local' | 'real'>('local');
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [showAnnotations, setShowAnnotations] = useState(true);
@@ -139,10 +142,18 @@ export const AnalyzeView: React.FC = () => {
           latitude: coordinates.lat,
           longitude: coordinates.lon,
           address: customImageLocation,
-          ward: 'Ward 6 — Mission & SOMA',
-          zone: 'Transit & Pedestrian Arterial',
+          ward: 'Ward 1 — Connaught Place & Barakhamba',
+          zone: 'Central Commercial & Arterial Corridor',
+          state: 'Delhi',
+          district: 'New Delhi',
+          city: 'New Delhi',
+          pincode: '110001',
+          locationVerificationStatus: 'VERIFIED_GEOCODED',
+          gpsSource: 'DEVICE_GPS',
           timestamp: new Date().toISOString(),
         },
+        recordType: 'PRODUCTION',
+        verificationStatus: 'VERIFIED',
         imageUrl: inferenceResult.imageUrl,
         status: 'detected',
         authorityId: matchedAuth.id,
@@ -534,6 +545,14 @@ export const AnalyzeView: React.FC = () => {
               />
 
               <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setIsCameraModalOpen(true)}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 text-xs font-mono font-bold flex items-center gap-1.5 sm:gap-2 transition-all shadow-sm shadow-emerald-950/50 active:scale-95"
+                >
+                  <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Take a Photo</span>
+                </button>
+
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#141C2E] hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-mono font-medium flex items-center gap-1.5 sm:gap-2 transition-colors"
@@ -1034,6 +1053,18 @@ export const AnalyzeView: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Live Device Camera Capture Modal */}
+      <CameraCaptureModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={(dataUrl) => {
+          setSelectedImage(dataUrl);
+          setActivePresetId('custom-camera');
+          startAnalysis(dataUrl, 'custom-camera');
+        }}
+        title="Capture Live Field Infrastructure Evidence"
+      />
     </motion.div>
   );
 };

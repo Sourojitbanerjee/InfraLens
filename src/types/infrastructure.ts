@@ -42,6 +42,13 @@ export interface GeoLocation {
   zone: string;
   timestamp?: string;
   accuracyMeters?: number;
+  state?: string;
+  district?: string;
+  city?: string;
+  roadName?: string;
+  pincode?: string;
+  gpsSource?: 'DEVICE_GPS' | 'SURVEY_RTK' | 'GEOCODING_VERIFIED' | 'CITIZEN_MOBILE' | 'UNVERIFIED_PROVISIONAL';
+  locationVerificationStatus?: 'VERIFIED_FIELD' | 'VERIFIED_GEOCODED' | 'UNVERIFIED_PROVISIONAL' | 'BORDER_DISPUTED';
 }
 
 export interface DetectionMetadata {
@@ -195,6 +202,13 @@ export interface Issue {
   reportedBy: 'AI_SURVEILLANCE' | 'MUNICIPAL_PATROL' | 'CITIZEN_FEEDBACK' | 'UAV_SCAN';
   notes?: string;
   resolutionComparison?: ResolutionComparison;
+  // Verification and Operational Fields (Phase 2 & Phase 3)
+  recordType?: 'PRODUCTION' | 'VERIFIED' | 'CITIZEN_REPORT' | 'DEMO';
+  verificationStatus?: 'VERIFIED' | 'PENDING_INSPECTION' | 'UNVERIFIED_PROVISIONAL';
+  assignedOfficerOrTeam?: string;
+  resolutionDeadline?: string;
+  supportingImages?: string[];
+  inspectionHistory?: { timestamp: string; inspector: string; findings: string; status: string }[];
 }
 
 export interface ResolutionComparison {
